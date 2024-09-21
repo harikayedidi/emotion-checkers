@@ -1,42 +1,4 @@
 import React, { useState } from "react";
-// import { extend } from "@react-three/fiber";
-// import { CylinderGeometry } from "three";
-// extend({ CylinderGeometry });
-// import { HexTile } from "./PlayerPiece";
-
-// const Board: React.FC = () => {
-//   const rows = 5; // Simplified board rows
-//   const tiles: JSX.Element[] = [];
-
-//   for (let row = 0; row < rows; row++) {
-//     for (let col = 0; col < row + 1; col++) {
-//       tiles.push(
-//         <HexTile key={`${row}-${col}`} position={[col * 1.5, 0, row * 1.75]} />
-//       );
-//     }
-//   }
-
-//   return <>{tiles}</>;
-// };
-
-// const Board: React.FC = () => {
-//   const rows = 3;
-//   const tiles = [];
-
-//   for (let row = 0; row < rows; row++) {
-//     for (let col = 0; col < row + 1; col++) {
-//       tiles.push(
-//         <mesh key={`${row}-${col}`} position={[col * 1.5, 0, row * 1.75]}>
-//           <cylinderGeometry args={[1, 1, 0.2, 6]} />{" "}
-//           {/* Notice cylinderGeometry */}
-//           <meshStandardMaterial color="#f0e68c" />
-//         </mesh>
-//       );
-//     }
-//   }
-
-//   return <>{tiles}</>;
-// };
 
 // Initial layout for the star-shaped Chinese Checkers board
 const initialLayout = [
@@ -187,12 +149,12 @@ const initialLayout = [
 
 // Colors for the six triangles and center
 const colors = {
-  T1: "#FFD700", // Yellow
+  T1: "#c0ffee", // teal
   T2: "#32CD32", // Green
   T3: "#1E90FF", // Blue
   T4: "#FF4500", // Red
-  T5: "#FFFFFF", // White
-  T6: "#c0ffee", // teal
+  T5: "#ff1493", // White
+  T6: "#FFD700", // Yellow
   C: "#e3e3e3", // Neutral center
 };
 
@@ -205,51 +167,96 @@ const Board: React.FC = () => {
   const isJumpMove = (
     selectedRow: number,
     selectedCol: number,
-    rowIndex: number,
-    colIndex: number
+    targetRow: number,
+    targetCol: number
   ) => {
-    // Check if it's a valid jump over an adjacent piece
-    const isJump =
-      Math.abs(rowIndex - selectedRow) === 2 &&
-      Math.abs(colIndex - selectedCol) === 2;
+    // Check if the move is exactly 2 spaces away
+    const rowDiff = Math.abs(targetRow - selectedRow);
+    const colDiff = Math.abs(targetCol - selectedCol);
 
-    if (isJump) {
-      // Get the middle piece (the piece being jumped over)
-      const middleRow = (selectedRow + rowIndex) / 2;
-      const middleCol = (selectedCol + colIndex) / 2;
+    // The move must be exactly 2 spaces in either row, column, or both (diagonal)
+    const isTwoSpacesAway =
+      (rowDiff === 2 && colDiff === 0) || // Vertical
+      (colDiff === 2 && rowDiff === 0) || // Horizontal
+      rowDiff === 2 ||
+      colDiff === 2; // Diagonal
 
-      // Jump is valid if the middle cell contains a piece and the destination is empty
-      if (
-        layout[middleRow][middleCol] !== null &&
-        layout[rowIndex][colIndex] === null
-      ) {
-        return true;
-      }
+    if (!isTwoSpacesAway) {
+      console.log("Not a jump");
+      return false; // If not exactly two spaces away, not a jump
     }
-    return false;
+
+    // Calculate the middle cell that the piece is jumping over
+    const middleRow = selectedRow + (targetRow - selectedRow) / 2;
+    const middleCol = selectedCol + (targetCol - selectedCol) / 2;
+
+    // Ensure the middle cell contains a piece and the target cell is empty
+    const middlePiece = layout[middleRow][middleCol];
+    const targetCellEmpty = layout[targetRow][targetCol] === null;
+
+    if (middlePiece !== null && targetCellEmpty) {
+      console.log("Jumped over", middlePiece);
+      return true; // Valid jump move
+    }
+
+    return false; // Invalid jump if middle piece isn't there or target cell is occupied
   };
 
   const isValidMove = (
     selectedRow: number,
     selectedCol: number,
-    rowIndex: number,
-    colIndex: number
+    targetRow: number,
+    targetCol: number
   ) => {
-    // Check if the move is a basic diagonal move (one space)
-    const isDiagonalMove =
-      Math.abs(rowIndex - selectedRow) === 1 &&
-      Math.abs(colIndex - selectedCol) === 1;
+    // Check if the target is an adjacent cell
+    const isAdjacentMove =
+      Math.abs(targetRow - selectedRow) <= 1 &&
+      Math.abs(targetCol - selectedCol) <= 1;
 
-    // If it's a diagonal move, the destination must be empty
-    if (isDiagonalMove && layout[rowIndex][colIndex] === null) {
-      return true;
+    // If it's an adjacent move and the target cell is empty, return true
+    if (isAdjacentMove && layout[targetRow][targetCol] === null) {
+      return true; // Valid adjacent move
     }
 
-    // Check for a valid jump move
-    return isJumpMove(selectedRow, selectedCol, rowIndex, colIndex);
+    // Otherwise, check if it's a valid jump move
+    return isJumpMove(selectedRow, selectedCol, targetRow, targetCol);
+  };
+  const checkFurtherJumps = (currentRow: number, currentCol: number) => {
+    // Check all possible directions (horizontal, vertical, diagonal) for further jumps
+    const directions = [
+      [2, 0], // Down
+      [-2, 0], // Up
+      [0, 2], // Right
+      [0, -2], // Left
+      [2, 2], // Diagonal down-right
+      [-2, -2], // Diagonal up-left
+      [2, -2], // Diagonal down-left
+      [-2, 2], // Diagonal up-right
+    ];
+
+    // Iterate over all directions and check if a further jump is possible
+    for (const [rowOffset, colOffset] of directions) {
+      const targetRow = currentRow + rowOffset;
+      const targetCol = currentCol + colOffset;
+
+      // Ensure the target is within board bounds
+      if (
+        targetRow >= 0 &&
+        targetRow < layout.length &&
+        targetCol >= 0 &&
+        targetCol < layout[0].length
+      ) {
+        if (isJumpMove(currentRow, currentCol, targetRow, targetCol)) {
+          return true; // Further jump is possible
+        }
+      }
+    }
+
+    return false; // No further jumps available
   };
 
   const handleClick = (rowIndex: number, colIndex: number) => {
+    console.log("Clicked", rowIndex, colIndex);
     if (selectedPiece === null) {
       // First click - select the piece if there is a piece in the clicked cell
       if (layout[rowIndex][colIndex]?.startsWith("T")) {
@@ -259,7 +266,7 @@ const Board: React.FC = () => {
       // Second click - try to move the piece
       const [selectedRow, selectedCol] = selectedPiece;
 
-      // Check if it's a valid move (either adjacent diagonal or a jump)
+      // Check if it's a valid move (either adjacent move or a jump)
       if (isValidMove(selectedRow, selectedCol, rowIndex, colIndex)) {
         const newLayout = [...layout];
 
@@ -276,8 +283,15 @@ const Board: React.FC = () => {
         if (isJumpMove(selectedRow, selectedCol, rowIndex, colIndex)) {
           // Allow chain jumps by keeping the selected piece in the new location
           setSelectedPiece([rowIndex, colIndex]);
+
+          // After the jump, check if further jumps are possible
+          const furtherJumpAvailable = checkFurtherJumps(rowIndex, colIndex);
+          if (!furtherJumpAvailable) {
+            // No more jumps available, reset selection
+            setSelectedPiece(null);
+          }
         } else {
-          // Reset the selected piece after the move
+          // Reset the selected piece after a basic move
           setSelectedPiece(null);
         }
       } else {
@@ -313,11 +327,12 @@ const Board: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         backgroundColor: "#8B4513", // Wood color
         borderRadius: "50%", // Circular board effect
         padding: "20px",
-        width: "auto",
-        height: "auto",
+        width: "900px",
+        height: "900px",
       }}>
       {layout.map((row, rowIndex) => (
         <div key={rowIndex} style={rowStyle(row)}>
