@@ -158,11 +158,21 @@ const colors = {
   C: "#e3e3e3", // Neutral center
 };
 
+const players = [
+  { name: "Player 1", color: "T1" },
+  { name: "Player 4", color: "T4" },
+  { name: "Player 6", color: "T6" },
+  { name: "Player 3", color: "T3" },
+  { name: "Player 2", color: "T2" },
+  { name: "Player 5", color: "T5" },
+];
+
 const Board: React.FC = () => {
   const [layout, setLayout] = useState(initialLayout);
   const [selectedPiece, setSelectedPiece] = useState<[number, number] | null>(
     null
   );
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0); // Player 1 starts
 
   const isJumpMove = (
     selectedRow: number,
@@ -256,11 +266,12 @@ const Board: React.FC = () => {
   };
 
   const handleClick = (rowIndex: number, colIndex: number) => {
-    console.log("Clicked", rowIndex, colIndex);
+    const currentPlayer = players[currentPlayerIndex]; // Get current player
+
     if (selectedPiece === null) {
-      // First click - select the piece if there is a piece in the clicked cell
-      if (layout[rowIndex][colIndex]?.startsWith("T")) {
-        setSelectedPiece([rowIndex, colIndex]);
+      // First click - select the piece if it belongs to the current player
+      if (layout[rowIndex][colIndex] === currentPlayer.color) {
+        setSelectedPiece([rowIndex, colIndex]); // Select the piece
       }
     } else {
       // Second click - try to move the piece
@@ -281,21 +292,23 @@ const Board: React.FC = () => {
 
         // Check if it's a jump move
         if (isJumpMove(selectedRow, selectedCol, rowIndex, colIndex)) {
-          // Allow chain jumps by keeping the selected piece in the new location
+          // Keep the selected piece in the new location after a jump
           setSelectedPiece([rowIndex, colIndex]);
 
           // After the jump, check if further jumps are possible
           const furtherJumpAvailable = checkFurtherJumps(rowIndex, colIndex);
           if (!furtherJumpAvailable) {
-            // No more jumps available, reset selection
+            // No more jumps available, reset selection and switch turn
             setSelectedPiece(null);
+            setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length); // Switch turn
           }
         } else {
-          // Reset the selected piece after a basic move
+          // If it's not a jump, switch turn immediately after a basic move
           setSelectedPiece(null);
+          setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length); // Switch turn
         }
       } else {
-        // Invalid move, reset the selection
+        // Invalid move, just reset the selection without switching turns
         setSelectedPiece(null);
       }
     }
@@ -322,32 +335,35 @@ const Board: React.FC = () => {
   });
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#8B4513", // Wood color
-        borderRadius: "50%", // Circular board effect
-        padding: "20px",
-        width: "900px",
-        height: "900px",
-      }}>
-      {layout.map((row, rowIndex) => (
-        <div key={rowIndex} style={rowStyle(row)}>
-          {row.map((cell, colIndex) => (
-            <div
-              key={`${rowIndex}-${colIndex}`}
-              style={cellStyle(
-                colors[cell as keyof typeof colors] || "transparent"
-              )}
-              onClick={() => handleClick(rowIndex, colIndex)}>
-              {/* Optional: {cell} */}
-            </div>
-          ))}
-        </div>
-      ))}
+    <div>
+      <h2>Current Turn: {players[currentPlayerIndex].name}</h2>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#8B4513", // Wood color
+          borderRadius: "50%", // Circular board effect
+          padding: "20px",
+          width: "900px",
+          height: "900px",
+        }}>
+        {layout.map((row, rowIndex) => (
+          <div key={rowIndex} style={rowStyle(row)}>
+            {row.map((cell, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                style={cellStyle(
+                  colors[cell as keyof typeof colors] || "transparent"
+                )}
+                onClick={() => handleClick(rowIndex, colIndex)}>
+                {cell}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
