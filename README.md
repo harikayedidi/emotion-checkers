@@ -1,50 +1,31 @@
-# React + TypeScript + Vite
+# Emotion Checkers
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Chinese checkers with a twist using the emotion colors from Inside Out
 
-Currently, two official plugins are available:
+## Building this game to play with my family and friends
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+<details>
+  <summary>Possible future variations:</summary>
+  <ul>
+    <li>
+      <strong>Character Powers:</strong> Each character has a special ability that can change the rules. For example, one character can "jump" two spaces at once, while another can block moves for a turn.
+    </li>
+    <li>
+      <strong>Reverse Objective:</strong> Instead of trying to get all your pieces across the board to the opposite corner, you need to keep your pieces in your starting area while forcing others to move theirs out.
+    </li>
+    <li>
+      <strong>Warp Zones:</strong> Add areas on the board that act as portals, allowing players to teleport their pieces to random parts of the board. This could be a feature tied to a specific character's power.
+    </li>
+    <li>
+      <strong>Timed Moves:</strong> Players must complete their moves within a short time limit, adding an element of pressure.
+    </li>
+    <li>
+      <strong>Dynamic Obstacles:</strong> Have barriers or obstacles that can be placed or moved around the board by certain characters, making it harder for others to move.
+    </li>
+    <li>
+      <strong>Inner Power-ups:</strong> Introduce inner power-ups (representing emotions) scattered around the board that give temporary boosts, like moving extra spaces or jumping multiple times.
+    </li>
+  </ul>
+</details>
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+### This project is built using - React + TypeScript + Vite

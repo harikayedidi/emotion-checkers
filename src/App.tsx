@@ -4,7 +4,7 @@ import Game from "./components/Board";
 function App() {
   return (
     <>
-      <div className="container mx-auto p-6 items-center">
+      <div className="container mx-auto p-6 items-center align-center">
         <div className="w-1 h-1">
           <img src={emotionCheckersLogo} width="100px" alt="Game logo" />
         </div>
