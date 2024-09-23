@@ -1,7 +1,6 @@
 import emotionCheckersLogo from "./assets/logo.png";
 import "./index.css";
 import Game from "./components/Board";
-import backgroundImage from "./assets/bg-7.png";
 
 function App() {
   return (
