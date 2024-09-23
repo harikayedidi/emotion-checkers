@@ -16,7 +16,7 @@ const initialPlayerPositions: [number, number, number][][] = [
     [4.5, 1, 0],
   ],
 ];
-//   const [playerPositions, setPlayerPositions] = useState(
+
 //     initialPlayerPositions
 //   );
 

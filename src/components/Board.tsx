@@ -188,21 +188,13 @@ const Board: React.FC = () => {
 
   return (
     <div>
-      <h2>Current Turn: {players[currentPlayerIndex].name}</h2>
+      <div className="flex flex-col bg-white items-center text-4xl text-center mb-[30px] py-[20px]">
+  <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
+    Current Turn: {players[currentPlayerIndex].name}
+  </span>
+</div>
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          color: "#ffffff",
-          fontSize: "20px",
-          justifyContent: "center",
-          backgroundColor: "#8B4513", // Wood color
-          borderRadius: "50%", // Circular board effect
-          padding: "5px",
-          width: "900px",
-          height: "900px",
-        }}>
+      className="flex flex-col items-center text-white text-lg justify-center bg-yellow-700 rounded-full p-1 w-[900px] h-[900px]">
         {layout.map((row, rowIndex) => (
           <div
             key={rowIndex}

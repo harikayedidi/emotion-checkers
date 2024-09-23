@@ -1,15 +1,21 @@
 import emotionCheckersLogo from "./assets/logo.png";
+import "./index.css";
 import Game from "./components/Board";
+import backgroundImage from "./assets/bg-7.png";
 
 function App() {
   return (
-    <>
-      <div className="container mx-auto p-6 items-center align-center">
-        <div className="w-1 h-1">
+    <div >
+      <div className="flex flex-col container mx-auto p-6 items-center" >
+        <div className="w-100 h-100">
           <img src={emotionCheckersLogo} width="100px" alt="Game logo" />
         </div>
-        <div className="text-3xl font-bold mb-6">
-          😁😨😢 Emotion checkers 🤢😡😌
+        <div className="text-6xl font-bold mb-6 text-center">
+          😁😨😢{" "}
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-blue-500 via-red-500 to-green-500">
+            Emotion checkers
+          </span>
+          🤢😡😌
         </div>
         <p>Chinese checkers with a twist using Inside out emotions </p>
         <details>
@@ -47,10 +53,10 @@ function App() {
           </ul>
         </details>
       </div>
-      <div className="flex flex-col items-center p-6 mt-10">
+      <div className="flex flex-col items-center p-6 mt-10 background-image">
         <Game />
       </div>
-    </>
+    </div>
   );
 }
 
