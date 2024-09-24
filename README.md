@@ -2,7 +2,9 @@
 
 ## Chinese checkers with a twist using the emotion colors from Inside Out
 
-## Building this game to play with my family and friends
+### Building this game to play with my family and friends
+
+#### https://tinyurl.com/emotion-checkers 
 
 <details>
   <summary>Possible future variations:</summary>
