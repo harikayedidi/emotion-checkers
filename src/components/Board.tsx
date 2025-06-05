@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 // Initial layout for the star-shaped Chinese Checkers board
 const initialLayout = [
@@ -97,61 +97,108 @@ const players = [
   { name: "Player 5", color: "T5", backgroundColor: "#ff1493" },
 ];
 
+const CELL_SIZE = 50;
+
+interface Piece {
+  id: number;
+  row: number;
+  col: number;
+  color: keyof typeof colors;
+}
+
+const initialPieces: Piece[] = [];
+let pid = 0;
+initialLayout.forEach((row, r) => {
+  row.forEach((cell, c) => {
+    if (cell && cell !== "C") {
+      initialPieces.push({ id: pid++, row: r, col: c, color: cell as keyof typeof colors });
+    }
+  });
+});
+
+const boardColors = initialLayout.map((row) => row.map((cell) => (cell ? (cell as keyof typeof colors) : null)));
+
 const Board: React.FC = () => {
-  const [layout, setLayout] = useState(initialLayout);
-  const [selectedPiece, setSelectedPiece] = useState<[number, number] | null>(
-    null
-  );
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0); // Player 1 starts
-  const [retainedColors, setRetainedColors] = useState<{
-    [key: string]: { color: string; backgroundColor: string };
-  }>({}); // Track retained colors
+  const [pieces, setPieces] = useState<Piece[]>(initialPieces);
+  const [selectedPieceId, setSelectedPieceId] = useState<number | null>(null);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 
-  // Handle piece movement
-  const handleClick = (rowIndex: number, colIndex: number) => {
-    const currentPlayer = players[currentPlayerIndex];
+  const pieceAt = (r: number, c: number) =>
+    pieces.find((p) => p.row === r && p.col === c);
 
-    if (selectedPiece === null) {
-      if (layout[rowIndex][colIndex] === currentPlayer.color) {
-        setSelectedPiece([rowIndex, colIndex]);
+  const isValidMove = (piece: Piece, r: number, c: number) => {
+    if (r < 0 || r >= boardColors.length) return false;
+    if (c < 0 || c >= boardColors[r].length) return false;
+    if (boardColors[r][c] === null) return false;
+    if (pieceAt(r, c)) return false;
+
+    const dr = r - piece.row;
+    const dc = c - piece.col;
+
+    if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) return true;
+    if (
+      (Math.abs(dr) === 2 && Math.abs(dc) === 0) ||
+      (Math.abs(dc) === 2 && Math.abs(dr) === 0) ||
+      (Math.abs(dr) === 2 && Math.abs(dc) === 2)
+    ) {
+      const midRow = piece.row + dr / 2;
+      const midCol = piece.col + dc / 2;
+      return !!pieceAt(midRow, midCol);
+    }
+    return false;
+  };
+
+  const validMoves = useMemo(() => {
+    if (selectedPieceId === null) return [] as [number, number][];
+    const piece = pieces.find((p) => p.id === selectedPieceId);
+    if (!piece) return [] as [number, number][];
+    const moves: [number, number][] = [];
+    for (let dr = -2; dr <= 2; dr++) {
+      for (let dc = -2; dc <= 2; dc++) {
+        const r = piece.row + dr;
+        const c = piece.col + dc;
+        if (isValidMove(piece, r, c)) moves.push([r, c]);
       }
-    } else {
-      const [selectedRow, selectedCol] = selectedPiece;
+    }
+    return moves;
+  }, [selectedPieceId, pieces]);
 
-      // Check if it's a valid move (either adjacent move or a jump)
-      if (
-        layout[rowIndex][colIndex] === null ||
-        layout[rowIndex][colIndex] === "C"
-      ) {
-        const newLayout = [...layout];
+  const animateMove = (piece: Piece, targetRow: number, targetCol: number) => {
+    const dr = targetRow - piece.row;
+    const dc = targetCol - piece.col;
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    const rowStep = dr / steps;
+    const colStep = dc / steps;
+    const delay = 300;
+    for (let i = 1; i <= steps; i++) {
+      setTimeout(() => {
+        setPieces((prev) =>
+          prev.map((p) =>
+            p.id === piece.id
+              ? { ...p, row: piece.row + rowStep * i, col: piece.col + colStep * i }
+              : p
+          )
+        );
+      }, delay * (i - 1));
+    }
+    setTimeout(() => {
+      setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
+    }, delay * steps);
+  };
 
-        // Move the piece to the new location
-        newLayout[rowIndex][colIndex] = newLayout[selectedRow][selectedCol];
+  const handleCellClick = (row: number, col: number) => {
+    if (selectedPieceId === null) return;
+    const piece = pieces.find((p) => p.id === selectedPieceId);
+    if (!piece) return;
+    if (isValidMove(piece, row, col)) {
+      animateMove(piece, row, col);
+    }
+    setSelectedPieceId(null);
+  };
 
-        // Retain the color and background color of the old location before clearing the piece
-        const currentColor = newLayout[selectedRow][selectedCol]!;
-        const playerBackgroundColor = players.find(
-          (player) => player.color === currentColor
-        )?.backgroundColor;
-        setRetainedColors({
-          ...retainedColors,
-          [`${selectedRow},${selectedCol}`]: {
-            color: currentColor,
-            backgroundColor: playerBackgroundColor!,
-          },
-        });
-
-        // Clear the old location (piece removed, but color retained)
-        newLayout[selectedRow][selectedCol] = null;
-
-        setLayout(newLayout);
-
-        // Reset the selected piece and switch turns
-        setSelectedPiece(null);
-        setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length); // Switch turn
-      } else {
-        setSelectedPiece(null); // Invalid move, reset selection
-      }
+  const handlePieceClick = (piece: Piece) => {
+    if (piece.color === players[currentPlayerIndex].color) {
+      setSelectedPieceId(piece.id);
     }
   };
 
@@ -162,20 +209,16 @@ const Board: React.FC = () => {
     rowIndex: number,
     colIndex: number
   ) => {
-    const retainedCell = retainedColors[`${rowIndex},${colIndex}`];
+    const isValid = validMoves.some(
+      ([r, c]) => r === rowIndex && c === colIndex
+    );
 
     return {
       width: "40px",
       height: "40px",
       borderRadius: "50%",
-      backgroundColor: retainedCell
-        ? "#ffffff"
-        : colors[cell as keyof typeof colors] || "transparent",
-      border:
-        cell !== null || retainedCell
-          ? "5px solid " +
-            (retainedCell ? retainedCell.backgroundColor : "transparent")
-          : "none",
+      backgroundColor: colors[cell as keyof typeof colors] || "transparent",
+      border: cell !== null ? `5px solid ${colors[cell as keyof typeof colors]}` : "none",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -183,7 +226,8 @@ const Board: React.FC = () => {
       cursor: "pointer",
       boxSizing: "border-box",
       ...(isSelected ? { border: "3px solid #ffffff" } : {}),
-    };
+      ...(isValid ? { outline: "3px solid #ffffff" } : {}),
+    } as React.CSSProperties;
   };
 
   return (
@@ -194,34 +238,50 @@ const Board: React.FC = () => {
   </span>
 </div>
       <div
-      className="flex flex-col items-center text-white text-lg justify-center bg-yellow-700 rounded-full p-1 w-[900px] h-[900px]">
-        {layout.map((row, rowIndex) => (
+        className="relative flex flex-col items-center text-white text-lg justify-center bg-yellow-700 rounded-full p-1 w-[900px] h-[900px]"
+      >
+        {boardColors.map((row, rowIndex) => (
           <div
             key={rowIndex}
             style={{
               display: "grid",
               gridTemplateColumns: `repeat(${row.length}, 40px)`,
               gap: "10px",
-            }}>
+            }}
+          >
             {row.map((cell, colIndex) => (
               <div
                 key={`${rowIndex}-${colIndex}`}
-                style={
-                  cellStyle(
-                    cell,
-                    selectedPiece !== null &&
-                      selectedPiece[0] === rowIndex &&
-                      selectedPiece[1] === colIndex,
-                    rowIndex,
-                    colIndex
-                  ) as React.CSSProperties
-                }
-                onClick={() => handleClick(rowIndex, colIndex)}>
-                {cell}
-              </div>
+                style={cellStyle(
+                  cell,
+                  false,
+                  rowIndex,
+                  colIndex
+                )}
+                onClick={() => handleCellClick(rowIndex, colIndex)}
+              ></div>
             ))}
           </div>
         ))}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+          {pieces.map((piece) => (
+            <div
+              key={piece.id}
+              className="pointer-events-auto"
+              onClick={() => handlePieceClick(piece)}
+              style={{
+                position: "absolute",
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                backgroundColor: colors[piece.color],
+                border: "3px solid #ffffff",
+                transform: `translate(${piece.col * CELL_SIZE}px, ${piece.row * CELL_SIZE}px)`,
+                transition: "transform 0.3s",
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
