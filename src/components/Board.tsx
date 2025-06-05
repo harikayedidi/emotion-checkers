@@ -111,48 +111,132 @@ const Board: React.FC = () => {
   const handleClick = (rowIndex: number, colIndex: number) => {
     const currentPlayer = players[currentPlayerIndex];
 
+    // Utility helpers
+    const isValidCell = (
+      r: number,
+      c: number,
+      board: (string | null)[][]
+    ): boolean =>
+      r >= 0 &&
+      c >= 0 &&
+      r < board.length &&
+      c < board[r].length &&
+      board[r][c] !== undefined;
+
+    const updateColor = (
+      obj: { [key: string]: { color: string; backgroundColor: string } },
+      r: number,
+      c: number,
+      color: string
+    ) => {
+      const bg = players.find((p) => p.color === color)?.backgroundColor!;
+      obj[`${r},${c}`] = { color, backgroundColor: bg };
+    };
+
     if (selectedPiece === null) {
       if (layout[rowIndex][colIndex] === currentPlayer.color) {
         setSelectedPiece([rowIndex, colIndex]);
       }
-    } else {
-      const [selectedRow, selectedCol] = selectedPiece;
-
-      // Check if it's a valid move (either adjacent move or a jump)
-      if (
-        layout[rowIndex][colIndex] === null ||
-        layout[rowIndex][colIndex] === "C"
-      ) {
-        const newLayout = [...layout];
-
-        // Move the piece to the new location
-        newLayout[rowIndex][colIndex] = newLayout[selectedRow][selectedCol];
-
-        // Retain the color and background color of the old location before clearing the piece
-        const currentColor = newLayout[selectedRow][selectedCol]!;
-        const playerBackgroundColor = players.find(
-          (player) => player.color === currentColor
-        )?.backgroundColor;
-        setRetainedColors({
-          ...retainedColors,
-          [`${selectedRow},${selectedCol}`]: {
-            color: currentColor,
-            backgroundColor: playerBackgroundColor!,
-          },
-        });
-
-        // Clear the old location (piece removed, but color retained)
-        newLayout[selectedRow][selectedCol] = null;
-
-        setLayout(newLayout);
-
-        // Reset the selected piece and switch turns
-        setSelectedPiece(null);
-        setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length); // Switch turn
-      } else {
-        setSelectedPiece(null); // Invalid move, reset selection
-      }
+      return;
     }
+
+    const [selectedRow, selectedCol] = selectedPiece;
+    const target = layout[rowIndex][colIndex];
+
+    // Destination must be empty
+    if (target !== null && target !== "C") {
+      setSelectedPiece(null);
+      return;
+    }
+
+    const rowDiff = rowIndex - selectedRow;
+    const colDiff = colIndex - selectedCol;
+    const absRow = Math.abs(rowDiff);
+    const absCol = Math.abs(colDiff);
+
+    // Reject diagonal or large moves
+    if ((absRow && absCol) || absRow > 2 || absCol > 2) {
+      setSelectedPiece(null);
+      return;
+    }
+
+    const newLayout = layout.map((row) => [...row]);
+    const newRetained = { ...retainedColors };
+    const pieceColor = newLayout[selectedRow][selectedCol]!;
+
+    const movePiece = (fromR: number, fromC: number, toR: number, toC: number) => {
+      updateColor(newRetained, fromR, fromC, pieceColor);
+      newLayout[toR][toC] = pieceColor;
+      newLayout[fromR][fromC] = null;
+    };
+
+    const performJumps = (startR: number, startC: number) => {
+      let r = startR;
+      let c = startC;
+      let jumped = true;
+
+      while (jumped) {
+        jumped = false;
+        const dirs = [
+          [-2, 0],
+          [2, 0],
+          [0, -2],
+          [0, 2],
+        ];
+
+        for (const [dr, dc] of dirs) {
+          const midR = r + dr / 2;
+          const midC = c + dc / 2;
+          const destR = r + dr;
+          const destC = c + dc;
+
+          if (
+            isValidCell(destR, destC, newLayout) &&
+            isValidCell(midR, midC, newLayout) &&
+            (newLayout[destR][destC] === null ||
+              newLayout[destR][destC] === "C") &&
+            newLayout[midR][midC] !== null &&
+            newLayout[midR][midC] !== "C"
+          ) {
+            movePiece(r, c, destR, destC);
+            r = destR;
+            c = destC;
+            jumped = true;
+            break;
+          }
+        }
+      }
+    };
+
+    const isAdjacent = (absRow === 1 && colDiff === 0) || (absCol === 1 && rowDiff === 0);
+    const isJump = (absRow === 2 && colDiff === 0) || (absCol === 2 && rowDiff === 0);
+
+    if (isAdjacent) {
+      movePiece(selectedRow, selectedCol, rowIndex, colIndex);
+    } else if (isJump) {
+      const midRow = selectedRow + rowDiff / 2;
+      const midCol = selectedCol + colDiff / 2;
+
+      if (
+        !isValidCell(midRow, midCol, layout) ||
+        layout[midRow][midCol] === null ||
+        layout[midRow][midCol] === "C"
+      ) {
+        setSelectedPiece(null);
+        return;
+      }
+
+      movePiece(selectedRow, selectedCol, rowIndex, colIndex);
+      performJumps(rowIndex, colIndex);
+    } else {
+      setSelectedPiece(null);
+      return;
+    }
+
+    setLayout(newLayout);
+    setRetainedColors(newRetained);
+    setSelectedPiece(null);
+    setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length);
   };
 
   // Define the cell style based on whether it is selected or retains its color
