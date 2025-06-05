@@ -88,13 +88,14 @@ const colors = {
   C: "#ffffff", // Neutral center
 };
 
+// Players ordered clockwise by team number
 const players = [
   { name: "Player 1", color: "T1", backgroundColor: "#000000" },
-  { name: "Player 4", color: "T4", backgroundColor: "#FF4500" },
-  { name: "Player 6", color: "T6", backgroundColor: "#FFD700" },
-  { name: "Player 3", color: "T3", backgroundColor: "#1E90FF" },
   { name: "Player 2", color: "T2", backgroundColor: "#32CD32" },
+  { name: "Player 3", color: "T3", backgroundColor: "#1E90FF" },
+  { name: "Player 4", color: "T4", backgroundColor: "#FF4500" },
   { name: "Player 5", color: "T5", backgroundColor: "#ff1493" },
+  { name: "Player 6", color: "T6", backgroundColor: "#FFD700" },
 ];
 
 const Board: React.FC = () => {
