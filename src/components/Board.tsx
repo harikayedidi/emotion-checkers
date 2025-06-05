@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDebug } from "../DebugContext";
 
 // Initial layout for the star-shaped Chinese Checkers board
 const initialLayout = [
@@ -98,6 +99,7 @@ const players = [
 ];
 
 const Board: React.FC = () => {
+  const { debug } = useDebug();
   const [layout, setLayout] = useState(initialLayout);
   const [selectedPiece, setSelectedPiece] = useState<[number, number] | null>(
     null
@@ -106,6 +108,51 @@ const Board: React.FC = () => {
   const [retainedColors, setRetainedColors] = useState<{
     [key: string]: { color: string; backgroundColor: string };
   }>({}); // Track retained colors
+  const [validMoves, setValidMoves] = useState<[number, number][]>([]);
+
+  useEffect(() => {
+    if (debug) {
+      console.log(`Turn: ${players[currentPlayerIndex].name}`);
+    }
+  }, [currentPlayerIndex, debug]);
+
+  const getValidMoves = (
+    row: number,
+    col: number,
+  ): [number, number][] => {
+    const directions = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ];
+    const moves: [number, number][] = [];
+    for (const [dr, dc] of directions) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (
+        layout[nr] &&
+        (layout[nr][nc] === null || layout[nr][nc] === "C")
+      ) {
+        moves.push([nr, nc]);
+      }
+      const jr = row + dr * 2;
+      const jc = col + dc * 2;
+      if (
+        layout[nr] &&
+        layout[jr] &&
+        layout[nr][nc] !== null &&
+        (layout[jr][jc] === null || layout[jr][jc] === "C")
+      ) {
+        moves.push([jr, jc]);
+      }
+    }
+    return moves;
+  };
 
   // Handle piece movement
   const handleClick = (rowIndex: number, colIndex: number) => {
@@ -114,15 +161,16 @@ const Board: React.FC = () => {
     if (selectedPiece === null) {
       if (layout[rowIndex][colIndex] === currentPlayer.color) {
         setSelectedPiece([rowIndex, colIndex]);
+        setValidMoves(getValidMoves(rowIndex, colIndex));
       }
     } else {
       const [selectedRow, selectedCol] = selectedPiece;
 
-      // Check if it's a valid move (either adjacent move or a jump)
-      if (
-        layout[rowIndex][colIndex] === null ||
-        layout[rowIndex][colIndex] === "C"
-      ) {
+      const isValid = validMoves.some(
+        ([r, c]) => r === rowIndex && c === colIndex,
+      );
+
+      if (isValid) {
         const newLayout = [...layout];
 
         // Move the piece to the new location
@@ -148,9 +196,20 @@ const Board: React.FC = () => {
 
         // Reset the selected piece and switch turns
         setSelectedPiece(null);
-        setCurrentPlayerIndex((currentPlayerIndex + 1) % players.length); // Switch turn
+        setValidMoves([]);
+        if (debug) {
+          console.log(
+            `Player ${currentPlayer.name} moved from ${selectedRow},${selectedCol} to ${rowIndex},${colIndex}`,
+          );
+        }
+        const nextPlayer = (currentPlayerIndex + 1) % players.length;
+        setCurrentPlayerIndex(nextPlayer); // Switch turn
+        if (debug) {
+          console.log(`Next turn: ${players[nextPlayer].name}`);
+        }
       } else {
         setSelectedPiece(null); // Invalid move, reset selection
+        setValidMoves([]);
       }
     }
   };
@@ -159,6 +218,7 @@ const Board: React.FC = () => {
   const cellStyle = (
     cell: string | null,
     isSelected: boolean,
+    isValid: boolean,
     rowIndex: number,
     colIndex: number
   ) => {
@@ -183,6 +243,7 @@ const Board: React.FC = () => {
       cursor: "pointer",
       boxSizing: "border-box",
       ...(isSelected ? { border: "3px solid #ffffff" } : {}),
+      ...(isValid && debug ? { outline: "2px dashed #ffffff" } : {}),
     };
   };
 
@@ -212,6 +273,9 @@ const Board: React.FC = () => {
                     selectedPiece !== null &&
                       selectedPiece[0] === rowIndex &&
                       selectedPiece[1] === colIndex,
+                    validMoves.some(
+                      ([r, c]) => r === rowIndex && c === colIndex,
+                    ),
                     rowIndex,
                     colIndex
                   ) as React.CSSProperties

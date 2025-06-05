@@ -1,11 +1,13 @@
 import emotionCheckersLogo from "./assets/logo.png";
 import "./index.css";
 import Game from "./components/Board";
+import { DebugProvider, useDebug } from "./DebugContext";
 
-function App() {
+const InnerApp: React.FC = () => {
+  const { debug, toggleDebug } = useDebug();
   return (
-    <div >
-      <div className="flex flex-col container mx-auto p-6 items-center" >
+    <div>
+      <div className="flex flex-col container mx-auto p-6 items-center">
         <div className="w-100 h-100">
           <img src={emotionCheckersLogo} width="100px" alt="Game logo" />
         </div>
@@ -16,6 +18,12 @@ function App() {
           </span>
           🤢😡😌
         </div>
+        <button
+          className="mb-4 px-4 py-2 bg-gray-200 rounded"
+          onClick={toggleDebug}
+        >
+          {debug ? "Disable" : "Enable"} Debug
+        </button>
         <p>Chinese checkers with a twist using Inside out emotions </p>
         <details>
           <summary>Possible future variations:</summary>
@@ -57,6 +65,12 @@ function App() {
       </div>
     </div>
   );
-}
+};
+
+const App: React.FC = () => (
+  <DebugProvider>
+    <InnerApp />
+  </DebugProvider>
+);
 
 export default App;
