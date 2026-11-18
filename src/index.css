@@ -1,22 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-.background-image {
-    position: relative;
-    width: 100vw;
-  }
-  
-  .background-image::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url('./assets/bg-7.png'); 
-    background-size: cover;
-    background-position: center;
-    opacity: 0.5; /* Set the opacity to 50% */
-    z-index: -1; /* Ensure the background is behind the content */
-  }
+* {box-sizing:border-box}
+body {margin:0;color:#faf5ff;background:radial-gradient(ellipse at 32% 42%,#413450 0,#221c2c 54%,#17141e 100%);min-height:100vh;font:16px/1.5 "Trebuchet MS",system-ui,sans-serif}
+main {width:min(1160px,96%);margin:auto;padding:20px 0 48px}
+header {display:flex;align-items:center;gap:12px;border-bottom:1px solid #ffffff26;padding:0 1% 15px}
+h1,h2,p {margin:0} h1 {font: bold clamp(24px,4vw,42px)/1.1 Georgia,serif;letter-spacing:-.04em}
+.brand-mark {color:#ffcf76;font-size:36px}.help {margin-left:auto;position:relative}.help summary {cursor:pointer}.help div {position:absolute;z-index:4;right:0;width:min(310px,85vw);background:#393040;border:1px solid #776681;border-radius:12px;padding:16px}
+.table {display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,28%);gap:4%;align-items:center}
+.tray {perspective:1400px;padding:4% 1% 8%;container-type:inline-size}
+.disc {aspect-ratio:1;position:relative;border-radius:50%;transform:rotateX(16deg);border:2px solid #d2a578;background:repeating-radial-gradient(ellipse at 0% 130%,transparent 0 8px,#7a432011 9px 10px),linear-gradient(145deg,#ffdcaa,#c29570 60%,#b88968);box-shadow:inset 0 0 0 5px #ca9974,inset 0 0 0 7px #ebcdaa,0 5px #92664d,0 11px #795644,0 16px #5f4236,0 27px 34px #100d1799}
+.holes {position:absolute;inset:6% 4%;display:flex;flex-direction:column;justify-content:center}
+.row {display:flex;justify-content:center;height:5.88%;align-items:center}
+button,select {font:inherit}button:enabled,select,input {cursor:pointer}
+.hole {position:relative;width:7.35%;height:100%;padding:0;border:0;background:none;display:grid;place-items:center}
+.hole::before {content:"";position:absolute;width:70%;aspect-ratio:1;border-radius:50%;background:linear-gradient(145deg,#614738,color-mix(in srgb,var(--tint) 38%,#c09a7d));box-shadow:inset 1px 2px 4px #3e2d29aa,0 1px 1px #ffe5bd}
+.marble {position:relative;width:83%;aspect-ratio:1;display:grid;place-items:center;border-radius:50%;font-size:3.2cqw;line-height:1;background:radial-gradient(circle at 31% 21%,#fff 0%,var(--tint) 34%,color-mix(in srgb,var(--tint) 68%,#24182c) 76%,#483345);box-shadow:inset -1px -2px 3px #0005,1px 3px 3px #34212c99;transform:translateY(-7%);transition:transform .18s}
+.selected .marble,.hole:enabled:hover .marble {transform:translateY(-15%) scale(1.09)}.selected .marble {outline:3px solid white}
+.legal::before {background:#fff3a7;box-shadow:0 0 0 2px #775629,0 0 10px #fff9cb,inset 0 0 0 3px #ffd96a}
+:focus-visible {outline:3px solid #409dff;outline-offset:2px;z-index:2}
+aside {padding:24px;background:#302936;border:1px solid #68596d;border-radius:18px;box-shadow:0 12px 32px #17101d55}
+.eyebrow {text-transform:uppercase;letter-spacing:.15em;color:#ffd391;font-size:11px;font-weight:bold}
+h2 {font: bold clamp(25px,3vw,35px)/1.3 Georgia,serif;margin:5px 0}.turn>p:last-child {color:#ded4e4}
+.teams {margin:18px 0;border-block:1px solid #695a70;padding:10px 0}.teams div,.setting,form,form label {display:flex;align-items:center;gap:9px}.teams div {padding:3px 0}.teams i {width:11px;height:11px;border-radius:50%;background:var(--tint)}small {margin-left:auto;color:#e1d1e5}
+form {justify-content:space-between;margin-top:15px}.setting input {accent-color:#ffd391;width:18px;height:18px}.action,select {color:#2c1f30;border:0;border-radius:8px;background:#ffdb9f;padding:6px 10px}.turn+.action {margin-top:10px}
+@media(max-width:760px){.table{grid-template-columns:1fr;gap:4px}aside{padding:16px}.teams{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 22px}main{padding-top:12px}.help{font-size:14px}.disc{transform:rotateX(10deg)}}
+@media(prefers-reduced-motion:reduce){.marble{transition:none}}
