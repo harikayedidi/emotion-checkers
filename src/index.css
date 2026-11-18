@@ -23,3 +23,15 @@ h2 {font: bold clamp(25px,3vw,35px)/1.3 Georgia,serif;margin:5px 0}.turn>p:last-
 form {justify-content:space-between;margin-top:15px}.setting input {accent-color:#ffd391;width:18px;height:18px}.action,select {color:#2c1f30;border:0;border-radius:8px;background:#ffdb9f;padding:6px 10px}.turn+.action {margin-top:10px}
 @media(max-width:760px){.table{grid-template-columns:1fr;gap:4px}aside{padding:16px}.teams{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 22px}main{padding-top:12px}.help{font-size:14px}.disc{transform:rotateX(10deg)}}
 @media(prefers-reduced-motion:reduce){.marble{transition:none}}
+.holes {transform:rotate(var(--angle,0deg))}
+.upright {display:block;transform:rotate(calc(-1 * var(--angle,0deg)))}
+.face {display:block}
+.reacting {animation:cheer .9s ease-in-out}
+@keyframes cheer {0%,100%{transform:scale(1)}30%{transform:translateY(-12%) rotate(-12deg) scale(1.24)}65%{transform:rotate(8deg) scale(1.1)}}
+@media(prefers-reduced-motion:reduce){.reacting{animation:none}}
+.turn-surface {position:absolute;inset:0;border-radius:50%;touch-action:none;user-select:none;cursor:grab}
+.turn-surface:active {cursor:grabbing}
+.angle-control {display:flex;gap:10px;align-items:center;justify-content:center;margin-top:22px}
+.angle-control input {accent-color:#ffd391;width:min(40%,220px)}
+.angle-control output {min-width:4ch;font-variant-numeric:tabular-nums}
+.setting {min-height:32px}
