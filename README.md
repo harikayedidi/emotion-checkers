@@ -31,3 +31,11 @@
 </details>
 
 ### This project is built using - React + TypeScript + Vite
+
+### Family rooms
+
+Open **Play online with family**, choose 2, 3, 4, or 6 players and create a room. Share the family invite privately. Each browser that joins claims a seat. The game starts once all seats are filled. Keep the room URL to reconnect from the same browser profile. Board rotation, hints and emoji settings are personal to each screen.
+
+The Node server serves both the built React app and the room API. With Node 22.13 or newer, run `npm ci`, `npm run build`, then `npm start`. Open port 3000, or set `PORT`. Run the room test after building with `node --test tests/family-room.test.mjs`.
+
+On Azure App Service use one Node instance, Node 22.13 or later, and persistent writable storage. The default database directory is `$HOME/data/emotion-checkers` on App Service. Override it with `ROOM_DATA_DIR` if needed. A frontend-only Static Web Apps deployment also needs a backend serving `/api/rooms/*` for online games.

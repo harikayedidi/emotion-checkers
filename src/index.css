@@ -35,3 +35,9 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .angle-control input {accent-color:#ffd391;width:min(40%,220px)}
 .angle-control output {min-width:4ch;font-variant-numeric:tabular-nums}
 .setting {min-height:32px}
+.family {margin:14px 1%;border:1px solid #695a70;border-radius:12px;padding:9px 14px;background:#302936}
+.family summary {cursor:pointer;color:#ffdb9f}
+.room-controls {display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 0}
+.room-controls label {display:flex;gap:6px;align-items:center}
+.room-controls a {color:#ffdb9f}
+.room-controls input[readonly] {max-width:45vw}

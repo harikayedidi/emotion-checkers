@@ -1,5 +1,5 @@
-import Board from "./components/Board";
+import FamilyRoom from "./components/FamilyRoom";
 
 export default function App() {
-  return <Board />;
+  return <FamilyRoom />;
 }
