@@ -43,3 +43,7 @@ On Azure App Service use one Node instance, Node 22.13 or later, and persistent 
 Online play admits up to 100,000 metered room API requests per UTC calendar month. Each minute, the server allows up to 36 requests across challenges, room creation and joining, and 180 other room requests. Limit checks are shared by all rooms and persist across server restarts. Change `monthLimit` in `server/guard.ts` to tune the monthly allowance. Host billing also covers traffic outside the game API.
 
 The browser solves a short ALTCHA proof-of-work puzzle when creating or joining a room. The signed puzzle expires after three minutes and is bound to that room, seat credential and action. Returning players use their existing seat. The client pauses polling on hidden tabs and finished games.
+
+### GitHub Pages
+
+[Play Emotion Checkers](https://harikayedidi.github.io/emotion-checkers/). The static frontend lives in the personal Pages repository under `emotion-checkers/`. Set `VITE_ROOM_API_ORIGIN` to the multiplayer server origin and run `npm run build:pages` to regenerate `dist/`. Local and same-origin builds use `/api/rooms/` by default.

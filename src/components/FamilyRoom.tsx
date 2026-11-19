@@ -46,7 +46,7 @@ export default function FamilyRoom() {
       if(!pending) localStorage.setItem(storageKey,token);
     }
     if (!token) throw Error("Use the invitation link to take your seat.");
-    const response=await fetch("/api/rooms/"+target,{method:body?"POST":"GET",cache:"no-store",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+    const response=await fetch((import.meta.env.VITE_ROOM_API_ORIGIN || "")+"/api/rooms/"+target,{method:body?"POST":"GET",cache:"no-store",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
     const value=await response.json().catch(()=>{throw Error("The room server is unavailable.")});
     if (!response.ok) throw new RoomError(value.error || "Could not reach the room.",response.status,!!value.monthly,Number(response.headers.get("Retry-After"))*1000);
     return value as T;

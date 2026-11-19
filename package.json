@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --ssr server/rooms.ts --outDir dist-api",
+    "build:pages": "vite build --base=/emotion-checkers/",
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/start.mjs"
