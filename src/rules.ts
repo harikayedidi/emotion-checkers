@@ -22,7 +22,7 @@ export function initialPosition(teams: number[]): Position {
 export function wins(board: Position, team: number) {
   return rows.flat().filter(c => c.camp === (team + 3) % 6).every(c => board[c.id] === team);
 }
-export function moves(board: Position, from: string, long: boolean, hopsOnly = false) {
+export function moves(board: Position, from: string, hopsOnly = false) {
   const result = new Map<string, 'step' | 'hop'>();
   const start = cells.get(from);
   const team = board[from];
@@ -33,14 +33,7 @@ export function moves(board: Position, from: string, long: boolean, hopsOnly = f
     const empty = (n: number) => cells.has(at(n)) && board[at(n)] === undefined;
     const allowed = (n: number) => start.camp !== goal || cells.get(at(n))?.camp === goal;
     if (!hopsOnly && empty(1) && allowed(1)) result.set(at(1), 'step');
-    let pivot = 1;
-    while (long && empty(pivot)) pivot++;
-    if (board[at(pivot)] === undefined) continue;
-    let clear = true;
-    for (let n = pivot + 1; n <= pivot * 2; n++) {
-      if (!empty(n)) { clear = false; break; }
-    }
-    if (clear && allowed(2 * pivot)) result.set(at(2 * pivot), 'hop');
+    if (board[at(1)] !== undefined && empty(2) && allowed(2)) result.set(at(2), 'hop');
   }
   return result;
 }

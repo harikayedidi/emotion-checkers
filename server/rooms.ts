@@ -4,7 +4,7 @@ import { validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
 import type { Match } from "../src/match";
 
-type Room = {avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
+type Room = {names?:Record<number,string>; avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
 export interface Store {
   spend: Spend;
   read(id:string): Promise<Room | null>;
@@ -18,7 +18,7 @@ async function digest(token:string) {
   return Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,"0")).join("");
 }
 function view(room:Room, seat:number) {
-  return json({avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
+  return json({names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
     ...(seat === room.game.teams[0] ? {invite:room.invite} : {})});
 }
 export async function roomApi(req:Request, store:Store):Promise<Response> {
@@ -45,11 +45,13 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   if ((body.action==="create" || body.action==="join") && body.avatar !== undefined && !validAvatar(body.avatar)) {
     return fail("Choose an emoji from the available sets.",400);
   }
+  const name=typeof body.name==="string" ? body.name.trim() : "";
+  if ((body.action==="create" || body.action==="join") && (name.length>32 || Array.from(name).some(c=>c.charCodeAt(0)<32))) return fail("Use a single-line name of up to 32 characters.",400);
   if (body.action==="create") {
     if (room) return Number.isInteger(seat) ? view(room,seat) : fail("Room already exists.",409);
     if (![2,3,4,6].includes(body.count) || typeof body.long!=="boolean") return fail("Choose a supported player count.",400);
     const team = seats[body.count][0];
-    const created = {avatars:body.avatar ? {[team]:body.avatar} : {},game:newMatch(body.count,body.long),players:{[team]:key},invite:crypto.randomUUID().replaceAll("-",""),version:1};
+    const created = {names:{[team]:name},avatars:body.avatar ? {[team]:body.avatar} : {},game:newMatch(body.count,body.long),players:{[team]:key},invite:crypto.randomUUID().replaceAll("-",""),version:1};
     return await store.save(id,created,null) ? view(created,team) : fail("Try creating the room again.",409);
   }
   if (!room) return fail("Room not found.",404);
@@ -58,15 +60,20 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
     if (!valid(body.invite) || body.invite!==room.invite) return fail("This invitation is invalid.",403);
     const free = room.game.teams.find(t=>!room.players[t]);
     if (free===undefined) return fail("All seats are taken.",409);
-    const joined={...room,avatars:{...room.avatars,...(body.avatar ? {[free]:body.avatar} : {})},players:{...room.players,[free]:key},version:room.version+1};
+    const joined={...room,names:{...room.names,[free]:name},avatars:{...room.avatars,...(body.avatar ? {[free]:body.avatar} : {})},players:{...room.players,[free]:key},version:room.version+1};
     return await store.save(id,joined,room.version) ? view(joined,free) : fail("Another player just joined. Try again.",409);
   }
   if (!Number.isInteger(seat)) return fail("This seat is private.",403);
   if (body.version!==room.version) return fail("The board changed. Check the latest position.",409);
-  if (Object.keys(room.players).length!==room.game.teams.length || seat!==room.game.teams[room.game.turn]) return fail("Wait for your turn.",409);
   const move=body.move;
-  if (body.action!=="move" || !move || typeof move!=="object" ||
-      !(move.end===true || (typeof move.from==="string" && typeof move.to==="string" && !("end" in move)))) return fail("Invalid move.",400);
+  if (body.action!=="move" || !move || typeof move!=="object") return fail("Invalid move.",400);
+  if ("undo" in move) {
+    const previous=room.game.undo;
+    if (move.undo!==true || !previous || seat!==room.game.teams[previous.turn]) return fail("Only the last mover can undo.",409);
+  } else {
+    if (Object.keys(room.players).length!==room.game.teams.length || seat!==room.game.teams[room.game.turn]) return fail("Wait for your turn.",409);
+    if (!(move.end===true || (typeof move.from==="string" && typeof move.to==="string" && !("end" in move)))) return fail("Invalid move.",400);
+  }
   const game=applyMove(room.game,move);
   if (!game) return fail("That move is unavailable.",422);
   const updated={...room,game,version:room.version+1};

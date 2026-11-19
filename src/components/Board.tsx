@@ -11,7 +11,7 @@ const tint = (camp: number) => ({"--tint": moods[camp]?.[2] ?? "#847697"} as CSS
 
 type Props = {panel?: ReactNode; room?: RoomView | null; online?: boolean; busy?: boolean; onMove?: (move: Move) => void};
 export default function Board({panel, room, online, busy, onMove}: Props) {
-  const [local, setLocal] = useState(() => newMatch(6, false));
+  const [local, setLocal] = useState(() => newMatch(6, true));
   const game = room?.game ?? local;
   const {teams, board, turn, path, long, winner} = game;
   const previousBoard = useRef(board);
@@ -38,6 +38,7 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
       {translate: "0px 0px"}
     ], {duration: 240, easing: "ease-out"});
   }, [board]);
+  const playerName = (t:number) => room?.names?.[t] || moods[t][0];
   const avatar = (team: number) => room?.avatars?.[team] || moods[team][1];
   const [choice, select] = useState("");
   const waiting = online && (!room || room.joined.length < teams.length);
@@ -62,10 +63,10 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game]);
   const team = teams[turn];
-  const legal = moves(board, selected, long, !!game.chain);
+  const legal = moves(board, selected, !!game.chain);
   for (const seen of path) legal.delete(seen);
   function act(move: Move) {
-    if (!mine || busy || rotating || winner) return;
+    if (busy || rotating || winner || (!mine && !("undo" in move))) return;
     if (online) onMove?.(move);
     else {
       const next = applyMove(game,move);
@@ -79,14 +80,14 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
     } else if (legal.has(id)) act({from:selected,to:id});
   }
   return <main>
-    <header><span className="brand-mark" aria-hidden="true">✦</span><h1>Emotion Checkers</h1><details className="help"><summary>How to play</summary><div>Race your ten marbles to the opposite point of the star. Step to an empty neighbor or hop over one marble of any color. Chain hops with the same marble, then end your turn. Pieces stay on the board. Once in your goal, stay inside it. Optional long jumps cross one centered marble with equal clear space on both sides.</div></details></header>
+    <header><span className="brand-mark" aria-hidden="true">✦</span><h1>Emotion Checkers</h1><details className="help"><summary>How to play</summary><div>Race your ten marbles to the opposite point of the star. Step to an empty neighbor or hop over one marble of any color. With chain jumps on, keep hopping with that marble or choose End turn. Each hop crosses one adjacent marble into the empty hole immediately beyond. Pieces stay on the board. Once in your goal, stay inside it. Undo move returns your marble to where it started this turn.</div></details></header>
     {panel}
     {(!online || room) && <div className="table" ref={boardElement}>
       <BoardView rotating={rotating}>
         {rows.map((row, r) => <div className="row" key={r}>{row.map((c, i) => {
           const piece = board[c.id];
           const own = piece === team && (!path.length || selected === c.id);
-          const label = piece !== undefined ? moods[piece][0] : (hints && legal.get(c.id)) || "Empty";
+          const label = piece !== undefined ? playerName(piece) : (hints && legal.get(c.id)) || "Empty";
           return <button data-hole={c.id} key={c.id} style={tint(c.camp)} className={'hole' + (hints && legal.has(c.id) ? ' legal' : '') + (selected === c.id ? ' selected' : '')}
             disabled={!mine || busy || winner || rotating || (!own && !legal.has(c.id))} aria-label={label + ', row ' + (r+1) + ', hole ' + (i+1)}
             aria-pressed={piece === undefined ? undefined : selected === c.id} onClick={() => play(c.id)}>
@@ -94,11 +95,12 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
         })}</div>)}
       </BoardView>
       <aside><div className="turn" aria-live="polite"><p className="eyebrow">{winner ? "Winner" : "At the table"}</p>
-      <h2>{avatar(team)} {moods[team][0]}{winner ? " wins!" : "’s turn"}</h2>
-      <p>{winner ? "All ten marbles made it home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + moods[team][0] + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
+      <h2>{avatar(team)} {playerName(team)}{winner ? " wins!" : "’s turn"}</h2>
+      <p>{winner ? "All ten marbles made it home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + playerName(team) + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
       {mine && path.length > 0 && <button className="action" disabled={rotating || busy} onClick={() => act({end:true})}>End turn</button>}
-      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && avatar(t)} {moods[t][0]}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
-      <label className="setting"><input type="checkbox" checked={long} disabled={online || !!path.length} onChange={e => setLocal({...local,long:e.target.checked,last:""})}/> Allow long jumps</label>
+      <button className="action" disabled={busy || rotating || winner || !game.undo || (online && room?.seat !== teams[game.undo.turn])} onClick={() => act({undo:true})}>Undo move</button>
+      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && avatar(t)} {playerName(t)}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
+      <label className="setting"><input type="checkbox" checked={long} disabled={online || !!path.length} onChange={e => setLocal({...local,long:e.target.checked,last:""})}/> Allow chain jumps</label>
       <label className="setting"><input type="checkbox" checked={faces} onChange={e => {setFaces(e.target.checked); setReaction(null);}}/> Emoji marbles</label>
       <label className="setting"><input type="checkbox" checked={faces && reactions} disabled={!faces} onChange={e => {setReactions(e.target.checked); setReaction(null);}}/> Turn-end reactions</label>
       <label className="setting"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)}/> Show possible moves</label>
