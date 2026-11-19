@@ -1,3 +1,5 @@
+import { solveChallenge } from "altcha-lib";
+import type { Challenge } from "altcha-lib/types";
 import { avatarSets } from "../avatars";
 import { useEffect, useRef, useState } from "react";
 import Board from "./Board";
@@ -5,6 +7,9 @@ import type { Move, RoomView } from "../match";
 
 const fresh = () => crypto.randomUUID().replace(/-/g,"");
 const names = ["Joy","Fear","Anger","Sadness","Disgust","Calm"];
+class RoomError extends Error {
+  constructor(message:string, readonly status:number, readonly monthly:boolean, readonly retryMs:number) { super(message); }
+}
 function locationRoom() {
   const params = new URLSearchParams(location.hash.slice(1));
   return {id:params.get("room") || "", invite:params.get("invite") || ""};
@@ -25,28 +30,44 @@ export default function FamilyRoom() {
     window.addEventListener("hashchange",change);
     return ()=>window.removeEventListener("hashchange",change);
   },[]);
-  async function request(target:string, body?:object) {
+  async function request<T=RoomView>(target:string, body?:object) {
     const storageKey="emotion-seat-"+target;
     let token=localStorage.getItem(storageKey);
     if (!token && body) { token=fresh(); localStorage.setItem(storageKey,token); }
     if (!token) throw Error("Use the invitation link to take your seat.");
     const response=await fetch("/api/rooms/"+target,{method:body?"POST":"GET",cache:"no-store",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
     const value=await response.json().catch(()=>{throw Error("The room server is unavailable.")});
-    if (!response.ok) throw Error(value.error || "Could not reach the room.");
-    return value as RoomView;
+    if (!response.ok) throw new RoomError(value.error || "Could not reach the room.",response.status,!!value.monthly,Number(response.headers.get("Retry-After"))*1000);
+    return value as T;
   }
   function update(next:RoomView) {setRoom(old=>!old || next.version>old.version ? next : old)}
   useEffect(()=>{
     if (!id || !localStorage.getItem("emotion-seat-"+id)) return;
     let cancelled=false;
+    let running=false;
+    let stopped=false;
+    let earliest=0;
     let timer:ReturnType<typeof setTimeout>;
     async function poll(){
-      try{const value=await request(id);if (!cancelled) {update(value);setError("")}}
-      catch(e){if(!cancelled) setError((e as Error).message)}
-      if(!cancelled) timer=setTimeout(poll,1500);
+      clearTimeout(timer);
+      if(cancelled || running || stopped || document.hidden) return;
+      if(Date.now()<earliest){timer=setTimeout(poll,earliest-Date.now());return;}
+      running=true;
+      let delay=5000;
+      try {
+        const value=await request(id);
+        if(!cancelled){update(value);setError("");stopped=value.game.winner;}
+      } catch(e){
+        if(!cancelled) setError((e as Error).message);
+        if(e instanceof RoomError){stopped=e.monthly || e.status===403 || e.status===404;delay=Math.max(delay,e.retryMs);}
+        else delay=15000;
+      } finally {running=false;}
+      earliest=Date.now()+delay;
+      if(!cancelled && !stopped && !document.hidden) timer=setTimeout(poll,delay);
     }
     void poll();
-    return ()=>{cancelled=true;clearTimeout(timer)};
+    document.addEventListener("visibilitychange",poll);
+    return ()=>{cancelled=true;clearTimeout(timer);document.removeEventListener("visibilitychange",poll)};
   },[id,invite]);
   async function send(action:"create"|"join"|"move",move?:Move) {
     if(lock.current) return;
@@ -54,7 +75,15 @@ export default function FamilyRoom() {
     const previous=active.current;
     const target=action==="create"?fresh():id;
     try {
-      const value=await request(target,{action,count,long,invite,move,avatar:avatar || undefined,version:room?.version});
+      let proof;
+      if(action==="create" || action==="join"){
+        const check=await request<Challenge>(target,{action:"challenge",for:action});
+        const {promise}=solveChallenge(check.challenge,check.salt,check.algorithm,check.maxnumber);
+        const solution=await promise;
+        if(!solution) throw Error("Browser check failed. Please try again.");
+        proof={...check,number:solution.number};
+      }
+      const value=await request(target,{action,proof,count,long,invite,move,avatar:avatar || undefined,version:room?.version});
       if(active.current!==previous)return;
       if(action!=="move"){
         history.replaceState(null,"","#room="+target);
@@ -79,6 +108,7 @@ export default function FamilyRoom() {
     <button className="action" onClick={async()=>{try{await navigator.clipboard.writeText(link);setCopied(true)}catch{setError("Select the invite link and copy it.")}}}>{copied?"Copied":"Copy invite"}</button></>}</> :
     invite ? <>{picker}<button className="action" disabled={busy} onClick={()=>void send("join")}>Join family game</button></> : <span>Reconnecting to your seat…</span>}
     <a href="#">Same-device game</a></div>}
+    {busy && !room && <p role="status">Checking your browser…</p>}
     {error && <p role="status">{error}</p>}</details>;
   return <Board key={id || "local"} panel={panel} room={room} online={!!id} busy={busy} onMove={move=>void send("move",move)}/>;
 }

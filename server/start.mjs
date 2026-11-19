@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
-import { roomApi } from '../dist-api/rooms.js';
+import { roomApi, spendSql } from '../dist-api/rooms.js';
 
 const data = process.env.ROOM_DATA_DIR || (process.env.WEBSITE_SITE_NAME ? resolve(process.env.HOME,'data','emotion-checkers') : '.room-data');
 mkdirSync(data,{recursive:true});
@@ -12,7 +12,10 @@ db.exec('CREATE TABLE IF NOT EXISTS rooms (id TEXT PRIMARY KEY, version INTEGER 
 const read = db.prepare('SELECT data FROM rooms WHERE id=?');
 const insert = db.prepare('INSERT OR IGNORE INTO rooms VALUES(?,?,?)');
 const update = db.prepare('UPDATE rooms SET version=?,data=? WHERE id=? AND version=?');
+db.exec("CREATE TABLE IF NOT EXISTS room_meter (bucket TEXT PRIMARY KEY, period TEXT NOT NULL, used INTEGER NOT NULL, secret TEXT NOT NULL DEFAULT (hex(randomblob(32))))");
+const spend=db.prepare(spendSql);
 const store = {
+  async spend(bucket,period,limit){return spend.get(bucket,period,limit) ?? null},
   async read(id) {const row=read.get(id);return row ? JSON.parse(row.data) : null},
   async save(id,room,previous) {const json=JSON.stringify(room);return (previous===null ? insert.run(id,room.version,json) : update.run(room.version,json,id,previous)).changes===1}
 };

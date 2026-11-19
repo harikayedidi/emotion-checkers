@@ -39,3 +39,7 @@ Open **Play online with family**, choose 2, 3, 4, or 6 players and create a room
 The Node server serves both the built React app and the room API. With Node 22.13 or newer, run `npm ci`, `npm run build`, then `npm start`. Open port 3000, or set `PORT`. Run the room test after building with `node --test tests/family-room.test.mjs`.
 
 On Azure App Service use one Node instance, Node 22.13 or later, and persistent writable storage. The default database directory is `$HOME/data/emotion-checkers` on App Service. Override it with `ROOM_DATA_DIR` if needed. A frontend-only Static Web Apps deployment also needs a backend serving `/api/rooms/*` for online games.
+
+Online play admits up to 100,000 metered room API requests per UTC calendar month. Each minute, the server allows up to 36 requests across challenges, room creation and joining, and 180 other room requests. Limit checks are shared by all rooms and persist across server restarts. Change `monthLimit` in `server/guard.ts` to tune the monthly allowance. Host billing also covers traffic outside the game API.
+
+The browser solves a short ALTCHA proof-of-work puzzle when creating or joining a room. The signed puzzle expires after three minutes and is bound to that room, seat credential and action. Returning players use their existing seat. The client pauses polling on hidden tabs and finished games.

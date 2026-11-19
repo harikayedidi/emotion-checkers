@@ -1,9 +1,12 @@
+import { meter, accepts, challenge, type Spend } from "./guard";
+export { spendSql } from "./guard";
 import { validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
 import type { Match } from "../src/match";
 
 type Room = {avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
 export interface Store {
+  spend: Spend;
   read(id:string): Promise<Room | null>;
   save(id:string, room:Room, previous:number | null): Promise<boolean>;
 }
@@ -24,12 +27,21 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   const token = req.headers.get("Authorization")?.replace(/^Bearer /,"");
   if (!valid(token)) return fail("Open your family invitation to join.",403);
   const key = await digest(token);
+  if (req.method!=="POST" && req.method!=="GET") return fail("Method unavailable.",405);
+  const body=req.method==="POST" ? await req.json().catch(()=>null) : {};
+  if (!body || typeof body!=="object") return fail("Invalid request.",400);
+  const admission=["challenge","create","join"].includes(body.action);
+  const secret=await meter(store.spend,admission);
+  if (secret instanceof Response) return secret;
+  if (body.action==="challenge") {
+    if (body.for!=="create" && body.for!=="join") return fail("Invalid challenge.",400);
+    return json(await challenge(secret,id,key,body.for));
+  }
   const room = await store.read(id);
   const seat = room ? Number(Object.keys(room.players).find(s=>room.players[s]===key)) : NaN;
   if(req.method==="GET") return room && Number.isInteger(seat) ? view(room,seat) : fail("Room or seat unavailable.",403);
-  if(req.method!=="POST") return fail("Method unavailable.",405);
-  const body = await req.json().catch(()=>null);
-  if (!body || typeof body!=="object") return fail("Invalid request.",400);
+  if (admission && !Number.isInteger(seat) && !await accepts(body.proof,secret,id,key,body.action))
+    return fail("Browser check expired or failed. Please try again.",403);
   if ((body.action==="create" || body.action==="join") && body.avatar !== undefined && !validAvatar(body.avatar)) {
     return fail("Choose an emoji from the available sets.",400);
   }
