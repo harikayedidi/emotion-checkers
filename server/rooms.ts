@@ -1,6 +1,6 @@
 import { meter, accepts, challenge, type Spend } from "./guard";
 export { spendSql } from "./guard";
-import { validAvatar } from "../src/avatars";
+import { avatarSets, validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
 import type { Match } from "../src/match";
 
@@ -16,6 +16,9 @@ const valid = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{3
 async function digest(token:string) {
   const hash = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token));
   return Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,"0")).join("");
+}
+function claimed(room:Room) {
+  return Object.keys(room.players).map(Number).map(t=>room.avatars?.[t] || avatarSets.Emotions[t][0]);
 }
 function view(room:Room, seat:number) {
   return json({round:room.round ?? 1,ready:room.ready ?? [],names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
@@ -40,6 +43,10 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   const room = await store.read(id);
   const seat = room ? Number(Object.keys(room.players).find(s=>room.players[s]===key)) : NaN;
   if(req.method==="GET") return room && Number.isInteger(seat) ? view(room,seat) : fail("Room or seat unavailable.",403);
+  if (body.action==="availability") {
+    if (!room || !valid(body.invite) || room.invite!==body.invite) return fail("Open the full invite link from the host.",403);
+    return json({claimed:claimed(room)});
+  }
   if (admission && !Number.isInteger(seat) && !await accepts(body.proof,secret,id,key,body.action))
     return fail("Browser check expired or failed. Please try again.",403);
   if ((body.action==="create" || body.action==="join") && body.avatar !== undefined && !validAvatar(body.avatar)) {
@@ -62,10 +69,19 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
     const free = room.game.teams.find(t=>!room.players[t]);
     if (free===undefined) return fail("All seats are taken.",409);
     if (!name) return fail("Enter your name to join the room.",400);
-    const joined={...room,names:{...room.names,[free]:name},avatars:{...room.avatars,...(body.avatar ? {[free]:body.avatar} : {})},players:{...room.players,[free]:key},version:room.version+1};
+    const used=claimed(room);
+    if(body.avatar && used.includes(body.avatar)) return fail("Someone already picked that emoji. Choose another.",409);
+    const preferred=avatarSets.Emotions[free][0];
+    const symbol=body.avatar || (!used.includes(preferred) ? preferred : Object.values(avatarSets).flat().find(([option])=>!used.includes(option))![0]);
+    const joined={...room,names:{...room.names,[free]:name},avatars:{...room.avatars,[free]:symbol},players:{...room.players,[free]:key},version:room.version+1};
     return await store.save(id,joined,room.version) ? view(joined,free) : fail("Another player just joined. Try again.",409);
   }
   if (!Number.isInteger(seat)) return fail("This seat is private.",403);
+  if(body.action==="rename"){
+    if(!name || name.length>32 || Array.from(name).some(c=>c.charCodeAt(0)<32)) return fail("Enter a name of up to 32 characters.",400);
+    const updated={...room,names:{...room.names,[seat]:name},version:room.version+1};
+    return await store.save(id,updated,room.version) ? view(updated,seat) : fail("The room changed. Please save again.",409);
+  }
   if (body.action==="rematch") {
     let current:Room | null=room;
     for(let attempt=0;current && attempt<=room.game.teams.length;attempt++){

@@ -1,7 +1,7 @@
 import { solveChallenge } from "altcha-lib";
 import type { Challenge } from "altcha-lib/types";
 import { avatarSets } from "../avatars";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import type { Move, RoomView } from "../match";
 
@@ -19,6 +19,9 @@ export default function FamilyRoom() {
   const [room,setRoom] = useState<RoomView | null>(null);
   const [name,setName] = useState("");
   const [avatar,setAvatar] = useState("");
+  const [taken,setTaken]=useState<string[] | null>(null);
+  const [refresh,setRefresh]=useState(0);
+  const [editing,setEditing]=useState(false);
   const [count,setCount] = useState(2);
   const [long,setLong] = useState(true);
   const [error,setError] = useState("");
@@ -28,24 +31,52 @@ export default function FamilyRoom() {
   const active = useRef(id);
   const [copied,setCopied] = useState(false);
   useEffect(()=>{
-    const change=()=>{const loc=locationRoom();active.current=loc.id;setLocation(loc);setRoom(null);setError("");setCopied(false)};
+    const change=()=>{const loc=locationRoom();active.current=loc.id;setLocation(loc);setRoom(null);setName("");setAvatar("");setTaken(null);setEditing(false);setError("");setCopied(false)};
     window.addEventListener("hashchange",change);
     return ()=>window.removeEventListener("hashchange",change);
   },[]);
-  async function request<T=RoomView>(target:string, body?:object) {
+  const request=useCallback(async <T=RoomView,>(target:string, body?:object) => {
     const storageKey="emotion-seat-"+target;
-    let token=localStorage.getItem(storageKey);
-    if (!token && body) { token=fresh(); localStorage.setItem(storageKey,token); }
+    const pending=!!invite && target===id;
+    const key=pending ? "joining-"+storageKey : storageKey;
+    let token=sessionStorage.getItem(key) || (!pending && localStorage.getItem(storageKey));
+    if (!token && body) {
+      token=fresh();
+      sessionStorage.setItem(key,token);
+      if(!pending) localStorage.setItem(storageKey,token);
+    }
     if (!token) throw Error("Use the invitation link to take your seat.");
     const response=await fetch("/api/rooms/"+target,{method:body?"POST":"GET",cache:"no-store",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
     const value=await response.json().catch(()=>{throw Error("The room server is unavailable.")});
     if (!response.ok) throw new RoomError(value.error || "Could not reach the room.",response.status,!!value.monthly,Number(response.headers.get("Retry-After"))*1000);
     return value as T;
-  }
+  },[id,invite]);
   function update(next:RoomView) {setRoom(old=>!old || next.version>old.version ? next : old)}
+  useEffect(()=>{
+    if(!id || !invite) return;
+    let cancelled=false;
+    let timer:ReturnType<typeof setTimeout>;
+    async function refreshChoices(){
+      if(cancelled) return;
+      let delay=12000;
+      if(!document.hidden){
+        try {
+          const data=await request<{claimed:string[]}>(id,{action:"availability",invite});
+          if(!cancelled){setTaken(data.claimed);setAvatar(old=>data.claimed.includes(old)?"":old);}
+        }catch(e){
+          if(!cancelled)setError((e as Error).message);
+          if(e instanceof RoomError && (e.monthly || e.status===403)) return;
+          if(e instanceof RoomError) delay=Math.max(delay,e.retryMs);
+        }
+      }
+      if(!cancelled) timer=setTimeout(refreshChoices,delay);
+    }
+    void refreshChoices();
+    return ()=>{cancelled=true;clearTimeout(timer)};
+  },[id,invite,refresh,request]);
   const readyForRematch=!!room?.ready?.includes(room.seat);
   useEffect(()=>{
-    if (!id || !localStorage.getItem("emotion-seat-"+id)) return;
+    if (!id || invite || !localStorage.getItem("emotion-seat-"+id)) return;
     let cancelled=false;
     let running=false;
     let stopped=false;
@@ -71,10 +102,10 @@ export default function FamilyRoom() {
     void poll();
     document.addEventListener("visibilitychange",poll);
     return ()=>{cancelled=true;clearTimeout(timer);document.removeEventListener("visibilitychange",poll)};
-  },[id,invite,readyForRematch]);
-  async function send(action:"create"|"join"|"move"|"rematch",move?:Move) {
+  },[id,invite,readyForRematch,request]);
+  async function send(action:"create"|"join"|"move"|"rematch"|"rename",move?:Move) {
     if(lock.current) return;
-    if((action==="create" || action==="join") && !name.trim()){
+    if((action==="create" || action==="join" || action==="rename") && !name.trim()){
       setError("Please enter your name to play.");
       nameInput.current?.focus();
       return;
@@ -94,27 +125,43 @@ export default function FamilyRoom() {
       const value=await request(target,{action,round:room?.round ?? 1,proof,count,long,invite,move,name:name.trim(),avatar:avatar || undefined,version:room?.version});
       if(active.current!==previous)return;
       if(action==="create" || action==="join"){
+        if(action==="join"){
+          const key="emotion-seat-"+target;
+          const token=sessionStorage.getItem("joining-"+key);
+          if(token){
+            sessionStorage.setItem(key,token);
+            if(!localStorage.getItem(key)) localStorage.setItem(key,token);
+            sessionStorage.removeItem("joining-"+key);
+          }
+        }
         history.replaceState(null,"","#room="+target);
         active.current=target;setLocation({id:target,invite:""});
       }
       update(value);
-    } catch(e){if(active.current===previous)setError((e as Error).message)}
+      setEditing(false);
+    } catch(e){if(active.current===previous){setError((e as Error).message);if(action==="join")setRefresh(n=>n+1);}}
     finally{lock.current=false;setBusy(false)}
   }
-  const picker=<><label>Your name (required) <input required ref={nameInput} autoComplete="nickname" maxLength={32} value={name} placeholder="Display name" onChange={e=>setName(e.target.value)}/></label><label>Your emoji <select value={avatar} onChange={e=>setAvatar(e.target.value)}>
-    <option value="">Team emotion</option>
+  const picker=<><label>Your name (required) <input required ref={nameInput} autoComplete="nickname" maxLength={32} value={name} placeholder="Display name" onChange={e=>setName(e.target.value)}/></label><label>Your emoji <select disabled={!!invite && taken===null} value={avatar} onChange={e=>setAvatar(e.target.value)}>
+    <option value="">Choose for me</option>
     {Object.entries(avatarSets).map(([group,choices])=><optgroup key={group} label={group}>
-      {choices.map(([symbol,name])=><option key={symbol} value={symbol}>{symbol} {name}</option>)}
+      {choices.filter(([symbol])=>!invite || !taken?.includes(symbol)).map(([symbol,name])=><option key={symbol} value={symbol}>{symbol} {name}</option>)}
     </optgroup>)}
   </select></label></>;
   const link=room?.invite ? location.origin+location.pathname+"#room="+id+"&invite="+room.invite : "";
-  const panel=<details className="family" open={id ? true : undefined}><summary>{id?"Family room":"Play online with family"}</summary>
+  const guestForm=<section className="family guest-entry"><h2>Join family game</h2>
+    <form onSubmit={e=>{e.preventDefault();void send("join")}}>{picker}<button className="action" disabled={busy}>Join family game</button></form>
+    {busy && <p role="status">Checking your browser…</p>}{error && <p role="alert">{error}</p>}
+  </section>;
+  const panel=id && invite && !room ? guestForm : <details className="family" open={id ? true : undefined}><summary>{id?"Family room":"Play online with family"}</summary>
     {!id ? <div className="room-controls">{picker}<label>Family players <select value={count} onChange={e=>setCount(Number(e.target.value))}>{[2,3,4,6].map(n=><option key={n}>{n}</option>)}</select></label>
     <label><input type="checkbox" checked={long} onChange={e=>setLong(e.target.checked)}/> Allow chain jumps</label><button className="action" disabled={busy} onClick={()=>void send("create")}>Create private room</button></div> :
     <div className="room-controls">{room ? <><span>You play {room.names?.[room.seat] || names[room.seat]} · {room.joined.length}/{room.game.teams.length} seated</span>
+    {editing ? <form onSubmit={e=>{e.preventDefault();void send("rename")}}><label>Your name <input required ref={nameInput} value={name} maxLength={32} onChange={e=>setName(e.target.value)}/></label><button className="action" disabled={busy}>Save name</button></form> :
+      <button className="action" onClick={()=>{setName(room.names?.[room.seat] || "");setEditing(true);}}>Edit my name</button>}
     {link && room.joined.length<room.game.teams.length && <><label>Family invite <input aria-label="Family invite link" readOnly value={link} onFocus={e=>e.target.select()}/></label>
     <button className="action" onClick={async()=>{try{await navigator.clipboard.writeText(link);setCopied(true)}catch{setError("Select the invite link and copy it.")}}}>{copied?"Copied":"Copy invite"}</button></>}</> :
-    invite ? <>{picker}<button className="action" disabled={busy} onClick={()=>void send("join")}>Join family game</button></> : <span>Reconnecting to your seat…</span>}
+    <span>{localStorage.getItem("emotion-seat-"+id) ? "Reconnecting to your seat…" : "Ask the host for the link from Copy invite to enter your name and join."}</span>}
     <a href="#">Same-device game</a></div>}
     {busy && !room && <p role="status">Checking your browser…</p>}
     {error && <p role="status">{error}</p>}</details>;

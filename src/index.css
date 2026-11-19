@@ -48,3 +48,7 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .confetti i {position:absolute;top:-9px;width:6px;height:9px;animation:confetti-fall 1.4s ease-in 2 both}
 @keyframes confetti-fall {from{transform:translateY(-10px) rotate(0deg)}to{transform:translateY(150px) rotate(250deg);opacity:0}}
 @media(prefers-reduced-motion:reduce){.confetti{display:none}}
+.guest-entry {max-width:440px;margin:32px auto;padding:24px}
+.guest-entry form,.guest-entry label {display:grid;gap:8px}
+.guest-entry form {gap:18px}
+.guest-entry input,.guest-entry select {width:100%;padding:10px;border:1px solid #af9aaf;border-radius:8px;background:white;color:#302936;font:inherit}

@@ -41,10 +41,15 @@ test('two independent seats share authoritative turns and reconnect safely', asy
   assert.equal((await call(host,{action:'move',version:1,move:{from:'-2,2',to:'-4,4'}})).status,409);
   assert.equal((await call(guest,{action:'join',invite:'invalid'})).status,403);
   assert.equal((await call(guest,{action:'join',proof:await proof(guest,'join'),invite:first.invite})).status,400);
+  assert.deepEqual((await call(guest,{action:'availability',invite:first.invite})).claimed,['🦊']);
+  const collision={action:'join',proof:await proof(guest,'join'),invite:first.invite,name:'Guest',avatar:'🦊'};
+  assert.equal((await call(guest,collision)).status,409);
   const joined=await call(guest,{action:'join',proof:await proof(guest,'join'),invite:first.invite,name:'Tulip',avatar:'🌷'});
   assert.deepEqual(joined.avatars,{'0':'🦊','3':'🌷'});
   assert.deepEqual((await call(host)).avatars,joined.avatars);
   assert.deepEqual(joined.names,{'0':'Fox Fan','3':'Tulip'});
+  assert.deepEqual((await call(outsider,{action:'availability',invite:first.invite})).claimed,['🦊','🌷']);
+  assert.equal((await call(outsider,{action:'availability',invite:'bad'})).status,403);
   assert.equal(joined.seat,3);assert.equal(joined.invite,undefined);
   assert.equal((await call(outsider,{action:'join',proof:await proof(outsider,'join'),invite:first.invite})).status,409);
   const action={action:'move',version:2,move:{from:'-2,2',to:'-4,4'}};
