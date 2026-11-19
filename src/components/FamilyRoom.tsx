@@ -76,7 +76,7 @@ export default function FamilyRoom() {
   },[id,invite,refresh,request]);
   const readyForRematch=!!room?.ready?.includes(room.seat);
   useEffect(()=>{
-    if (!id || invite || !localStorage.getItem("emotion-seat-"+id)) return;
+    if (!id || invite || !(sessionStorage.getItem("emotion-seat-"+id) || localStorage.getItem("emotion-seat-"+id))) return;
     let cancelled=false;
     let running=false;
     let stopped=false;
@@ -103,7 +103,7 @@ export default function FamilyRoom() {
     document.addEventListener("visibilitychange",poll);
     return ()=>{cancelled=true;clearTimeout(timer);document.removeEventListener("visibilitychange",poll)};
   },[id,invite,readyForRematch,request]);
-  async function send(action:"create"|"join"|"move"|"rematch"|"rename",move?:Move) {
+  async function send(action:"create"|"join"|"move"|"rematch"|"rename"|"quit",move?:Move) {
     if(lock.current) return;
     if((action==="create" || action==="join" || action==="rename") && !name.trim()){
       setError("Please enter your name to play.");
@@ -114,6 +114,15 @@ export default function FamilyRoom() {
     const previous=active.current;
     const target=action==="create"?fresh():id;
     try {
+      if(action==="quit"){
+        const key="emotion-seat-"+id;
+        const token=sessionStorage.getItem(key) || localStorage.getItem(key);
+        await request(target,{action});
+        if(localStorage.getItem(key)===token) localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+        if(active.current===previous){active.current="";location.hash="";}
+        return;
+      }
       let proof;
       if(action==="create" || action==="join"){
         const check=await request<Challenge>(target,{action:"challenge",for:action});
@@ -165,5 +174,5 @@ export default function FamilyRoom() {
     <a href="#">Same-device game</a></div>}
     {busy && !room && <p role="status">Checking your browser…</p>}
     {error && <p role="status">{error}</p>}</details>;
-  return <Board key={id || "local"} panel={panel} room={room} online={!!id} busy={busy} onRematch={()=>void send("rematch")} onMove={move=>void send("move",move)}/>;
+  return <Board key={id || "local"} panel={panel} onQuit={()=>{if(window.confirm("Quit this game and free your seat? The other players can invite someone to take your place.")) void send("quit");}} room={room} online={!!id} busy={busy} onRematch={()=>void send("rematch")} onMove={move=>void send("move",move)}/>;
 }

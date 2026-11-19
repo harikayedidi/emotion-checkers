@@ -52,3 +52,15 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .guest-entry form,.guest-entry label {display:grid;gap:8px}
 .guest-entry form {gap:18px}
 .guest-entry input,.guest-entry select {width:100%;padding:10px;border:1px solid #af9aaf;border-radius:8px;background:white;color:#302936;font:inherit}
+
+.mobile-turn-actions {display:none}
+.leaderboard table {width:100%;text-align:left}
+.leaderboard td:last-child,.leaderboard th:last-child {text-align:right}
+.leaderboard td {overflow-wrap:anywhere}
+@media(max-width:760px){
+  header {flex-wrap:wrap}
+  .mobile-turn-actions {display:flex;justify-content:space-between;gap:16px;padding:8px 1%}
+  .mobile-turn-actions button {min-height:44px}
+  .mobile-turn-actions button:disabled {opacity:.55}
+  .turn-actions .move-control {display:none}
+}

@@ -2,9 +2,9 @@ import { meter, accepts, challenge, type Spend } from "./guard";
 export { spendSql } from "./guard";
 import { avatarSets, validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
-import type { Match } from "../src/match";
+import type { Match, Standing } from "../src/match";
 
-type Room = {round?:number; ready?:number[]; names?:Record<number,string>; avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
+type Room = {wins?: Record<number,number>; former?: Standing[]; departedWinner?: Standing; host?:number;round?:number; ready?:number[]; names?:Record<number,string>; avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
 export interface Store {
   spend: Spend;
   read(id:string): Promise<Room | null>;
@@ -20,9 +20,13 @@ async function digest(token:string) {
 function claimed(room:Room) {
   return Object.keys(room.players).map(Number).map(t=>room.avatars?.[t] || avatarSets.Emotions[t][0]);
 }
+function standing(room:Room, seat:number):Standing {
+  return {name:room.names?.[seat] || avatarSets.Emotions[seat][1], avatar:room.avatars?.[seat] || avatarSets.Emotions[seat][0], wins:room.wins?.[seat] ?? 0};
+}
 function view(room:Room, seat:number) {
-  return json({round:room.round ?? 1,ready:room.ready ?? [],names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
-    ...(seat === room.game.teams[0] ? {invite:room.invite} : {})});
+  const leaderboard=[...Object.keys(room.players).map(s=>standing(room,Number(s))), ...(room.former ?? [])].sort((a,b)=>b.wins-a.wins);
+  return json({leaderboard,departedWinner:room.departedWinner,round:room.round ?? 1,ready:room.ready ?? [],names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
+    ...(seat === (room.host ?? room.game.teams[0]) ? {invite:room.invite} : {})});
 }
 export async function roomApi(req:Request, store:Store):Promise<Response> {
   const id = new URL(req.url).pathname.split("/").pop();
@@ -77,6 +81,22 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
     return await store.save(id,joined,room.version) ? view(joined,free) : fail("Another player just joined. Try again.",409);
   }
   if (!Number.isInteger(seat)) return fail("This seat is private.",403);
+  if(body.action==="quit"){
+    const updated=structuredClone(room);
+    const leaving=standing(room,seat);
+    delete updated.players[seat];
+    delete updated.names?.[seat];
+    delete updated.avatars?.[seat];
+    delete updated.wins?.[seat];
+    if(leaving.wins) updated.former=[...(room.former ?? []),leaving];
+    if(room.game.winner && room.game.teams[room.game.turn]===seat && !room.departedWinner) updated.departedWinner=leaving;
+    if(room.game.undo && room.game.teams[room.game.undo.turn]===seat) updated.game.undo=null;
+    updated.ready=room.ready?.filter(s=>s!==seat);
+    if(seat===(room.host ?? room.game.teams[0])) updated.host=room.game.teams.find(s=>updated.players[s]);
+    if(!Object.keys(updated.players).length) updated.invite="";
+    updated.version++;
+    return await store.save(id,updated,room.version) ? json({left:true}) : fail("The room changed. Try quitting again.",409);
+  }
   if(body.action==="rename"){
     if(!name || name.length>32 || Array.from(name).some(c=>c.charCodeAt(0)<32)) return fail("Enter a name of up to 32 characters.",400);
     const updated={...room,names:{...room.names,[seat]:name},version:room.version+1};
@@ -85,13 +105,14 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   if (body.action==="rematch") {
     let current:Room | null=room;
     for(let attempt=0;current && attempt<=room.game.teams.length;attempt++){
+      if(current.players[seat]!==key) return fail("This seat is private.",403);
       const round=current.round ?? 1;
       if(body.round!==round || current.ready?.includes(seat)) return view(current,seat);
       if(!current.game.winner) return fail("Finish this round before starting another.",409);
       const ready=[...(current.ready ?? []),seat];
       const complete=ready.length===current.game.teams.length;
       const updated={...current,ready:complete ? [] : ready,round:complete ? round+1 : round,
-        game:complete ? newMatch(ready.length,current.game.long) : current.game,version:current.version+1};
+        departedWinner:complete ? undefined : current.departedWinner,game:complete ? newMatch(ready.length,current.game.long) : current.game,version:current.version+1};
       if(await store.save(id,updated,current.version)) return view(updated,seat);
       current=await store.read(id);
     }
@@ -110,5 +131,6 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   const game=applyMove(room.game,move);
   if (!game) return fail("That move is unavailable.",422);
   const updated={...room,game,version:room.version+1};
+  if(game.winner) updated.wins={...room.wins,[seat]:(room.wins?.[seat] ?? 0)+1};
   return await store.save(id,updated,room.version) ? view(updated,seat) : fail("The board changed. Check the latest position.",409);
 }

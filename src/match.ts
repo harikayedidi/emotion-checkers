@@ -38,4 +38,5 @@ export function applyMove(game: Match, move: Move): Match | null {
   }
   return {...next, path:[], chain:"", turn:next.winner ? game.turn : (game.turn+1)%game.teams.length};
 }
-export type RoomView = { round?:number; ready?:number[]; names?: Record<number,string>; avatars?: Record<number, string>; game: Match; joined: number[]; seat: number; version: number; invite?: string };
+export type Standing = {name:string; avatar:string; wins:number};
+export type RoomView = { leaderboard?: Standing[]; departedWinner?: Standing; round?:number; ready?:number[]; names?: Record<number,string>; avatars?: Record<number, string>; game: Match; joined: number[]; seat: number; version: number; invite?: string };
