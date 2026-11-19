@@ -1,6 +1,6 @@
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 
-export default function BoardView({ rotating, children }: { rotating: boolean; children: ReactNode }) {
+export default function BoardView({ rotating, controls, children }: { rotating: boolean; controls?: ReactNode; children: ReactNode }) {
   const [angle, setAngle] = useState(0);
   const drag = useRef<{ pointer: number; angle: number } | null>(null);
 
@@ -13,6 +13,7 @@ export default function BoardView({ rotating, children }: { rotating: boolean; c
   }
 
   return <section className="tray" aria-label="Chinese checkers board">
+    {controls}
     <div className="disc" style={{ "--angle": angle + "deg" } as CSSProperties}>
       <div className="holes">{children}</div>
       {rotating && <div className="turn-surface" aria-hidden="true"

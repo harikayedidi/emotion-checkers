@@ -21,7 +21,7 @@ aside {padding:24px;background:#302936;border:1px solid #68596d;border-radius:18
 h2 {font: bold clamp(25px,3vw,35px)/1.3 Georgia,serif;margin:5px 0}.turn>p:last-child {color:#ded4e4}
 .teams {margin:18px 0;border-block:1px solid #695a70;padding:10px 0}.teams div,.setting,form,form label {display:flex;align-items:center;gap:9px}.teams div {padding:3px 0}.teams i {width:11px;height:11px;border-radius:50%;background:var(--tint)}small {margin-left:auto;color:#e1d1e5}
 form {justify-content:space-between;margin-top:15px}.setting input {accent-color:#ffd391;width:18px;height:18px}.action,select {color:#2c1f30;border:0;border-radius:8px;background:#ffdb9f;padding:6px 10px}.turn+.action {margin-top:10px}
-@media(max-width:760px){.table{grid-template-columns:1fr;gap:4px}aside{padding:16px}.teams{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 22px}main{padding-top:12px}.help{font-size:14px}.disc{transform:rotateX(10deg)}}
+@media(max-width:760px), (max-height:600px) and (pointer:coarse){.table{grid-template-columns:1fr;gap:4px}aside{padding:16px}.teams{display:grid;grid-template-columns:repeat(2,1fr);gap:3px 22px}main{padding-top:12px}.help{font-size:14px}.disc{transform:rotateX(10deg)}}
 @media(prefers-reduced-motion:reduce){.marble{transition:none}}
 .holes {transform:rotate(var(--angle,0deg))}
 .upright {display:block;transform:rotate(calc(-1 * var(--angle,0deg)))}
@@ -57,9 +57,17 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .leaderboard table {width:100%;text-align:left}
 .leaderboard td:last-child,.leaderboard th:last-child {text-align:right}
 .leaderboard td {overflow-wrap:anywhere}
-@media(max-width:760px){
+@media(max-width:760px), (max-height:600px) and (pointer:coarse){
   header {flex-wrap:wrap}
-  .mobile-turn-actions {display:flex;justify-content:space-between;gap:16px;padding:8px 1%}
+  .multiplayer-header {position:sticky;top:0;z-index:6;background:#221c2c;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:6px 2%}
+  .multiplayer-header .brand-mark {display:none}
+  .multiplayer-header h1 {grid-column:1;grid-row:1}
+  .multiplayer-header .help {grid-column:1;grid-row:2;margin:0;width:fit-content}
+  .multiplayer-header .help div {left:0;right:auto}
+  .multiplayer-header .quit {grid-column:2;grid-row:1 / 3;min-height:44px}
+  .tray {position:relative}
+  .mobile-turn-actions {position:absolute;inset:0 1% auto;z-index:2;display:flex;justify-content:space-between;gap:12px;pointer-events:none}
+  .mobile-turn-actions .action {pointer-events:auto}
   .mobile-turn-actions button {min-height:44px}
   .mobile-turn-actions button:disabled {opacity:.55}
   .turn-actions .move-control {display:none}

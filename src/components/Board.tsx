@@ -87,11 +87,10 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
   const endButton=<button className="action move-control" disabled={!mine || !path.length || rotating || busy || winner} onClick={() => act({end:true})}>End turn</button>;
   const winnerName=room?.departedWinner?.name || playerName(team);
   return <main>
-    <header><span className="brand-mark" aria-hidden="true">✦</span><h1>Emotion Checkers</h1>{room && <button className="action quit" disabled={busy} onClick={onQuit}>Quit game</button>}<details className="help"><summary>How to play</summary><div>Race your ten marbles to the opposite point of the star. Step to an empty neighbor or hop over one marble of any color. With chain jumps on, keep hopping with that marble or choose End turn. Each hop crosses one adjacent marble into the empty hole immediately beyond. Pieces stay on the board. Once in your goal, stay inside it. Undo move returns your marble to where it started this turn.</div></details></header>
+    <header className={online ? "multiplayer-header" : undefined}><span className="brand-mark" aria-hidden="true">✦</span><h1>Emotion Checkers</h1>{online && <button className="action quit" disabled={busy} onClick={onQuit}>Quit game</button>}<details className="help"><summary>How to play</summary><div>Race your ten marbles to the opposite point of the star. Step to an empty neighbor or hop over one marble of any color. With chain jumps on, keep hopping with that marble or choose End turn. Each hop crosses one adjacent marble into the empty hole immediately beyond. Pieces stay on the board. Once in your goal, stay inside it. Undo move returns your marble to where it started this turn.</div></details></header>
     {panel}
     {(!online || room) && <div className="table" ref={boardElement}>
-      <div className="mobile-turn-actions">{undoButton}{endButton}</div>
-      <BoardView rotating={rotating}>
+      <BoardView rotating={rotating} controls={<div className="mobile-turn-actions">{undoButton}{endButton}</div>}>
         {rows.map((row, r) => <div className="row" key={r}>{row.map((c, i) => {
           const piece = board[c.id];
           const own = piece === team && (!path.length || selected === c.id);

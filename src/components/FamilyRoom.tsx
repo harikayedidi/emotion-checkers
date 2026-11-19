@@ -174,5 +174,5 @@ export default function FamilyRoom() {
     <a href="#">Same-device game</a></div>}
     {busy && !room && <p role="status">Checking your browser…</p>}
     {error && <p role="status">{error}</p>}</details>;
-  return <Board key={id || "local"} panel={panel} onQuit={()=>{if(window.confirm("Quit this game and free your seat? The other players can invite someone to take your place.")) void send("quit");}} room={room} online={!!id} busy={busy} onRematch={()=>void send("rematch")} onMove={move=>void send("move",move)}/>;
+  return <Board key={id || "local"} panel={panel} onQuit={()=>{if(!room){location.hash="";return;} if(window.confirm("Quit this game and free your seat? The other players can invite someone to take your place.")) void send("quit");}} room={room} online={!!id} busy={busy} onRematch={()=>void send("rematch")} onMove={move=>void send("move",move)}/>;
 }
