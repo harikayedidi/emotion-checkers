@@ -23,6 +23,7 @@ export default function FamilyRoom() {
   const [long,setLong] = useState(true);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
+  const nameInput=useRef<HTMLInputElement>(null);
   const lock = useRef(false);
   const active = useRef(id);
   const [copied,setCopied] = useState(false);
@@ -42,6 +43,7 @@ export default function FamilyRoom() {
     return value as T;
   }
   function update(next:RoomView) {setRoom(old=>!old || next.version>old.version ? next : old)}
+  const readyForRematch=!!room?.ready?.includes(room.seat);
   useEffect(()=>{
     if (!id || !localStorage.getItem("emotion-seat-"+id)) return;
     let cancelled=false;
@@ -57,7 +59,7 @@ export default function FamilyRoom() {
       let delay=5000;
       try {
         const value=await request(id);
-        if(!cancelled){update(value);setError("");stopped=value.game.winner;}
+        if(!cancelled){update(value);setError("");stopped=value.game.winner && !value.ready?.includes(value.seat);}
       } catch(e){
         if(!cancelled) setError((e as Error).message);
         if(e instanceof RoomError){stopped=e.monthly || e.status===403 || e.status===404;delay=Math.max(delay,e.retryMs);}
@@ -69,9 +71,14 @@ export default function FamilyRoom() {
     void poll();
     document.addEventListener("visibilitychange",poll);
     return ()=>{cancelled=true;clearTimeout(timer);document.removeEventListener("visibilitychange",poll)};
-  },[id,invite]);
-  async function send(action:"create"|"join"|"move",move?:Move) {
+  },[id,invite,readyForRematch]);
+  async function send(action:"create"|"join"|"move"|"rematch",move?:Move) {
     if(lock.current) return;
+    if((action==="create" || action==="join") && !name.trim()){
+      setError("Please enter your name to play.");
+      nameInput.current?.focus();
+      return;
+    }
     lock.current=true;setBusy(true);setError("");
     const previous=active.current;
     const target=action==="create"?fresh():id;
@@ -84,9 +91,9 @@ export default function FamilyRoom() {
         if(!solution) throw Error("Browser check failed. Please try again.");
         proof={...check,number:solution.number};
       }
-      const value=await request(target,{action,proof,count,long,invite,move,name:name.trim(),avatar:avatar || undefined,version:room?.version});
+      const value=await request(target,{action,round:room?.round ?? 1,proof,count,long,invite,move,name:name.trim(),avatar:avatar || undefined,version:room?.version});
       if(active.current!==previous)return;
-      if(action!=="move"){
+      if(action==="create" || action==="join"){
         history.replaceState(null,"","#room="+target);
         active.current=target;setLocation({id:target,invite:""});
       }
@@ -94,7 +101,7 @@ export default function FamilyRoom() {
     } catch(e){if(active.current===previous)setError((e as Error).message)}
     finally{lock.current=false;setBusy(false)}
   }
-  const picker=<><label>Your name <input maxLength={32} value={name} placeholder="Display name" onChange={e=>setName(e.target.value)}/></label><label>Your emoji <select value={avatar} onChange={e=>setAvatar(e.target.value)}>
+  const picker=<><label>Your name (required) <input required ref={nameInput} autoComplete="nickname" maxLength={32} value={name} placeholder="Display name" onChange={e=>setName(e.target.value)}/></label><label>Your emoji <select value={avatar} onChange={e=>setAvatar(e.target.value)}>
     <option value="">Team emotion</option>
     {Object.entries(avatarSets).map(([group,choices])=><optgroup key={group} label={group}>
       {choices.map(([symbol,name])=><option key={symbol} value={symbol}>{symbol} {name}</option>)}
@@ -111,5 +118,5 @@ export default function FamilyRoom() {
     <a href="#">Same-device game</a></div>}
     {busy && !room && <p role="status">Checking your browser…</p>}
     {error && <p role="status">{error}</p>}</details>;
-  return <Board key={id || "local"} panel={panel} room={room} online={!!id} busy={busy} onMove={move=>void send("move",move)}/>;
+  return <Board key={id || "local"} panel={panel} room={room} online={!!id} busy={busy} onRematch={()=>void send("rematch")} onMove={move=>void send("move",move)}/>;
 }

@@ -41,3 +41,10 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .room-controls label {display:flex;gap:6px;align-items:center}
 .room-controls a {color:#ffdb9f}
 .room-controls input[readonly] {max-width:45vw}
+.turn-actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-block:12px}
+.turn-actions button:disabled {opacity:.62;cursor:default}
+.turn {position:relative}
+.confetti {pointer-events:none;position:absolute;inset:0;overflow:hidden}
+.confetti i {position:absolute;top:-9px;width:6px;height:9px;animation:confetti-fall 1.4s ease-in 2 both}
+@keyframes confetti-fall {from{transform:translateY(-10px) rotate(0deg)}to{transform:translateY(150px) rotate(250deg);opacity:0}}
+@media(prefers-reduced-motion:reduce){.confetti{display:none}}

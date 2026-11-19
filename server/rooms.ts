@@ -4,7 +4,7 @@ import { validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
 import type { Match } from "../src/match";
 
-type Room = {names?:Record<number,string>; avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
+type Room = {round?:number; ready?:number[]; names?:Record<number,string>; avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
 export interface Store {
   spend: Spend;
   read(id:string): Promise<Room | null>;
@@ -18,7 +18,7 @@ async function digest(token:string) {
   return Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,"0")).join("");
 }
 function view(room:Room, seat:number) {
-  return json({names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
+  return json({round:room.round ?? 1,ready:room.ready ?? [],names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
     ...(seat === room.game.teams[0] ? {invite:room.invite} : {})});
 }
 export async function roomApi(req:Request, store:Store):Promise<Response> {
@@ -50,6 +50,7 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   if (body.action==="create") {
     if (room) return Number.isInteger(seat) ? view(room,seat) : fail("Room already exists.",409);
     if (![2,3,4,6].includes(body.count) || typeof body.long!=="boolean") return fail("Choose a supported player count.",400);
+    if (!name) return fail("Enter your name to create a room.",400);
     const team = seats[body.count][0];
     const created = {names:{[team]:name},avatars:body.avatar ? {[team]:body.avatar} : {},game:newMatch(body.count,body.long),players:{[team]:key},invite:crypto.randomUUID().replaceAll("-",""),version:1};
     return await store.save(id,created,null) ? view(created,team) : fail("Try creating the room again.",409);
@@ -60,10 +61,26 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
     if (!valid(body.invite) || body.invite!==room.invite) return fail("This invitation is invalid.",403);
     const free = room.game.teams.find(t=>!room.players[t]);
     if (free===undefined) return fail("All seats are taken.",409);
+    if (!name) return fail("Enter your name to join the room.",400);
     const joined={...room,names:{...room.names,[free]:name},avatars:{...room.avatars,...(body.avatar ? {[free]:body.avatar} : {})},players:{...room.players,[free]:key},version:room.version+1};
     return await store.save(id,joined,room.version) ? view(joined,free) : fail("Another player just joined. Try again.",409);
   }
   if (!Number.isInteger(seat)) return fail("This seat is private.",403);
+  if (body.action==="rematch") {
+    let current:Room | null=room;
+    for(let attempt=0;current && attempt<=room.game.teams.length;attempt++){
+      const round=current.round ?? 1;
+      if(body.round!==round || current.ready?.includes(seat)) return view(current,seat);
+      if(!current.game.winner) return fail("Finish this round before starting another.",409);
+      const ready=[...(current.ready ?? []),seat];
+      const complete=ready.length===current.game.teams.length;
+      const updated={...current,ready:complete ? [] : ready,round:complete ? round+1 : round,
+        game:complete ? newMatch(ready.length,current.game.long) : current.game,version:current.version+1};
+      if(await store.save(id,updated,current.version)) return view(updated,seat);
+      current=await store.read(id);
+    }
+    return fail("Please try the rematch again.",409);
+  }
   if (body.version!==room.version) return fail("The board changed. Check the latest position.",409);
   const move=body.move;
   if (body.action!=="move" || !move || typeof move!=="object") return fail("Invalid move.",400);

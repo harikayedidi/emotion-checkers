@@ -1,3 +1,4 @@
+import {useJumpSound} from "./useJumpSound";
 import BoardView from "./BoardView";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { rows, moves } from "../rules";
@@ -9,11 +10,13 @@ const moods = [
 ];
 const tint = (camp: number) => ({"--tint": moods[camp]?.[2] ?? "#847697"} as CSSProperties);
 
-type Props = {panel?: ReactNode; room?: RoomView | null; online?: boolean; busy?: boolean; onMove?: (move: Move) => void};
-export default function Board({panel, room, online, busy, onMove}: Props) {
+type Props = {onRematch?:()=>void; panel?: ReactNode; room?: RoomView | null; online?: boolean; busy?: boolean; onMove?: (move: Move) => void};
+export default function Board({panel, room, online, busy, onMove, onRematch}: Props) {
   const [local, setLocal] = useState(() => newMatch(6, true));
   const game = room?.game ?? local;
   const {teams, board, turn, path, long, winner} = game;
+  const {enabled:sounds,toggle:toggleSounds,play:playSound}=useJumpSound();
+  const landing=game.undo?.to;
   const previousBoard = useRef(board);
   const boardElement = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -26,6 +29,7 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
     const [from] = departed;
     const [to] = arrived;
     if (previous[from] !== board[to]) return;
+    if (landing===to && moves(previous,from,true).has(to)) playSound();
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const hole = (id: string) => boardElement.current?.querySelector<HTMLButtonElement>(`[data-hole="${id}"]`);
     const start = hole(from);
@@ -37,7 +41,7 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
       {translate: x + "px " + y + "px"},
       {translate: "0px 0px"}
     ], {duration: 240, easing: "ease-out"});
-  }, [board]);
+  }, [board,landing,playSound]);
   const playerName = (t:number) => room?.names?.[t] || moods[t][0];
   const avatar = (team: number) => room?.avatars?.[team] || moods[team][1];
   const [choice, select] = useState("");
@@ -66,7 +70,7 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
   const legal = moves(board, selected, !!game.chain);
   for (const seen of path) legal.delete(seen);
   function act(move: Move) {
-    if (busy || rotating || winner || (!mine && !("undo" in move))) return;
+    if (busy || winner || (!("undo" in move) && (rotating || !mine))) return;
     if (online) onMove?.(move);
     else {
       const next = applyMove(game,move);
@@ -95,12 +99,19 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
         })}</div>)}
       </BoardView>
       <aside><div className="turn" aria-live="polite"><p className="eyebrow">{winner ? "Winner" : "At the table"}</p>
-      <h2>{avatar(team)} {playerName(team)}{winner ? " wins!" : "’s turn"}</h2>
-      <p>{winner ? "All ten marbles made it home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + playerName(team) + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
+      <h2>{avatar(team)} {winner && (!online || mine) ? "You won!" : playerName(team)+(winner ? " wins!" : "’s turn")}</h2>
+      {winner && <div className="confetti" aria-hidden="true">{Array.from({length:22},(_,i)=><i key={i} style={{left:(i*47%100)+"%",background:moods[i%6][2],animationDelay:(i%5)*0.09+"s"}}/>)}</div>}
+      <p>{winner ? playerName(team)+" brought all ten marbles home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + playerName(team) + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
+      <div className="turn-actions">
       {mine && path.length > 0 && <button className="action" disabled={rotating || busy} onClick={() => act({end:true})}>End turn</button>}
-      <button className="action" disabled={busy || rotating || winner || !game.undo || (online && room?.seat !== teams[game.undo.turn])} onClick={() => act({undo:true})}>Undo move</button>
+      <button className="action" disabled={busy || winner || !game.undo || (online && room?.seat !== teams[game.undo.turn])} onClick={() => act({undo:true})}>Undo move</button>
+      {winner && <button className="action" disabled={busy || !!room?.ready?.includes(room.seat)} onClick={()=>online ? onRematch?.() : setLocal(newMatch(teams.length,long))}>{room?.ready?.includes(room.seat) ? "Ready for rematch" : "Play again"}</button>}
+      </div>
+      {winner && online && !!room?.ready?.length && <p role="status">{room.ready.length}/{teams.length} ready to play again</p>}
+      {online && !winner && game.undo && !mine && room?.seat===teams[game.undo.turn] && <small>You can undo until the next player moves.</small>}
       <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && avatar(t)} {playerName(t)}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
       <label className="setting"><input type="checkbox" checked={long} disabled={online || !!path.length} onChange={e => setLocal({...local,long:e.target.checked,last:""})}/> Allow chain jumps</label>
+      <label className="setting"><input type="checkbox" checked={sounds} onChange={e=>toggleSounds(e.target.checked)}/> Jump sounds</label>
       <label className="setting"><input type="checkbox" checked={faces} onChange={e => {setFaces(e.target.checked); setReaction(null);}}/> Emoji marbles</label>
       <label className="setting"><input type="checkbox" checked={faces && reactions} disabled={!faces} onChange={e => {setReactions(e.target.checked); setReaction(null);}}/> Turn-end reactions</label>
       <label className="setting"><input type="checkbox" checked={hints} onChange={e => setHints(e.target.checked)}/> Show possible moves</label>
