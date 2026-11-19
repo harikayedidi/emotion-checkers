@@ -19,12 +19,15 @@ test('two independent seats share authoritative turns and reconnect safely', asy
     });
     const res=await roomApi(req,store);return {status:res.status,...await res.json()};
   }
-  const first=await call(host,{action:'create',count:2,long:false});
+  assert.equal((await call(host,{action:'create',count:2,long:false,avatar:'unknown'})).status,400);
+  const first=await call(host,{action:'create',count:2,long:false,avatar:'🦊'});
   assert.equal(first.seat,0);
   assert.equal((await call(outsider)).status,403);
   assert.equal((await call(host,{action:'move',version:1,move:{from:'-2,2',to:'-4,4'}})).status,409);
   assert.equal((await call(guest,{action:'join',invite:'invalid'})).status,403);
-  const joined=await call(guest,{action:'join',invite:first.invite});
+  const joined=await call(guest,{action:'join',invite:first.invite,avatar:'🌷'});
+  assert.deepEqual(joined.avatars,{'0':'🦊','3':'🌷'});
+  assert.deepEqual((await call(host)).avatars,joined.avatars);
   assert.equal(joined.seat,3);assert.equal(joined.invite,undefined);
   assert.equal((await call(outsider,{action:'join',invite:first.invite})).status,409);
   const action={action:'move',version:2,move:{from:'-2,2',to:'-4,4'}};

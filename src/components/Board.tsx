@@ -1,5 +1,5 @@
 import BoardView from "./BoardView";
-import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { rows, moves } from "../rules";
 import { newMatch, applyMove, seats, type Move, type RoomView } from "../match";
 
@@ -14,6 +14,31 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
   const [local, setLocal] = useState(() => newMatch(6, false));
   const game = room?.game ?? local;
   const {teams, board, turn, path, long, winner} = game;
+  const previousBoard = useRef(board);
+  const boardElement = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const previous = previousBoard.current;
+    previousBoard.current = board;
+    if (previous === board) return;
+    const departed = Object.keys(previous).filter(id => previous[id] !== undefined && board[id] === undefined);
+    const arrived = Object.keys(board).filter(id => previous[id] === undefined && board[id] !== undefined);
+    if (departed.length !== 1 || arrived.length !== 1) return;
+    const [from] = departed;
+    const [to] = arrived;
+    if (previous[from] !== board[to]) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const hole = (id: string) => boardElement.current?.querySelector<HTMLButtonElement>(`[data-hole="${id}"]`);
+    const start = hole(from);
+    const end = hole(to);
+    if (!start || !end) return;
+    const x = start.offsetLeft - end.offsetLeft;
+    const y = start.offsetTop - end.offsetTop;
+    end.querySelector(".marble")?.animate?.([
+      {translate: x + "px " + y + "px"},
+      {translate: "0px 0px"}
+    ], {duration: 240, easing: "ease-out"});
+  }, [board]);
+  const avatar = (team: number) => room?.avatars?.[team] || moods[team][1];
   const [choice, select] = useState("");
   const waiting = online && (!room || room.joined.length < teams.length);
   const mine = !online || (!waiting && room?.seat === teams[turn]);
@@ -56,23 +81,23 @@ export default function Board({panel, room, online, busy, onMove}: Props) {
   return <main>
     <header><span className="brand-mark" aria-hidden="true">✦</span><h1>Emotion Checkers</h1><details className="help"><summary>How to play</summary><div>Race your ten marbles to the opposite point of the star. Step to an empty neighbor or hop over one marble of any color. Chain hops with the same marble, then end your turn. Pieces stay on the board. Once in your goal, stay inside it. Optional long jumps cross one centered marble with equal clear space on both sides.</div></details></header>
     {panel}
-    {(!online || room) && <div className="table">
+    {(!online || room) && <div className="table" ref={boardElement}>
       <BoardView rotating={rotating}>
         {rows.map((row, r) => <div className="row" key={r}>{row.map((c, i) => {
           const piece = board[c.id];
           const own = piece === team && (!path.length || selected === c.id);
           const label = piece !== undefined ? moods[piece][0] : (hints && legal.get(c.id)) || "Empty";
-          return <button key={c.id} style={tint(c.camp)} className={'hole' + (hints && legal.has(c.id) ? ' legal' : '') + (selected === c.id ? ' selected' : '')}
+          return <button data-hole={c.id} key={c.id} style={tint(c.camp)} className={'hole' + (hints && legal.has(c.id) ? ' legal' : '') + (selected === c.id ? ' selected' : '')}
             disabled={!mine || busy || winner || rotating || (!own && !legal.has(c.id))} aria-label={label + ', row ' + (r+1) + ', hole ' + (i+1)}
             aria-pressed={piece === undefined ? undefined : selected === c.id} onClick={() => play(c.id)}>
-            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction?.id === c.id ? "face reacting" : "face"}>{reactions && reaction?.id === c.id ? reaction.face : moods[piece][1]}</span></span>}</span>}</button>;
+            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction?.id === c.id ? "face reacting" : "face"}>{reactions && reaction?.id === c.id ? reaction.face : avatar(piece)}</span></span>}</span>}</button>;
         })}</div>)}
       </BoardView>
       <aside><div className="turn" aria-live="polite"><p className="eyebrow">{winner ? "Winner" : "At the table"}</p>
-      <h2>{moods[team][1]} {moods[team][0]}{winner ? " wins!" : "’s turn"}</h2>
+      <h2>{avatar(team)} {moods[team][0]}{winner ? " wins!" : "’s turn"}</h2>
       <p>{winner ? "All ten marbles made it home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + moods[team][0] + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
       {mine && path.length > 0 && <button className="action" disabled={rotating || busy} onClick={() => act({end:true})}>End turn</button>}
-      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{moods[t][0]}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
+      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && avatar(t)} {moods[t][0]}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
       <label className="setting"><input type="checkbox" checked={long} disabled={online || !!path.length} onChange={e => setLocal({...local,long:e.target.checked,last:""})}/> Allow long jumps</label>
       <label className="setting"><input type="checkbox" checked={faces} onChange={e => {setFaces(e.target.checked); setReaction(null);}}/> Emoji marbles</label>
       <label className="setting"><input type="checkbox" checked={faces && reactions} disabled={!faces} onChange={e => {setReactions(e.target.checked); setReaction(null);}}/> Turn-end reactions</label>

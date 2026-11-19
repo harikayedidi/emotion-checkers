@@ -1,7 +1,8 @@
+import { validAvatar } from "../src/avatars";
 import {applyMove, newMatch, seats} from "../src/match";
 import type { Match } from "../src/match";
 
-type Room = {game: Match; players: Record<string,string>; invite: string; version: number};
+type Room = {avatars?: Record<number,string>; game: Match; players: Record<string,string>; invite: string; version: number};
 export interface Store {
   read(id:string): Promise<Room | null>;
   save(id:string, room:Room, previous:number | null): Promise<boolean>;
@@ -14,7 +15,7 @@ async function digest(token:string) {
   return Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,"0")).join("");
 }
 function view(room:Room, seat:number) {
-  return json({game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
+  return json({avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
     ...(seat === room.game.teams[0] ? {invite:room.invite} : {})});
 }
 export async function roomApi(req:Request, store:Store):Promise<Response> {
@@ -29,11 +30,14 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
   if(req.method!=="POST") return fail("Method unavailable.",405);
   const body = await req.json().catch(()=>null);
   if (!body || typeof body!=="object") return fail("Invalid request.",400);
+  if ((body.action==="create" || body.action==="join") && body.avatar !== undefined && !validAvatar(body.avatar)) {
+    return fail("Choose an emoji from the available sets.",400);
+  }
   if (body.action==="create") {
     if (room) return Number.isInteger(seat) ? view(room,seat) : fail("Room already exists.",409);
     if (![2,3,4,6].includes(body.count) || typeof body.long!=="boolean") return fail("Choose a supported player count.",400);
     const team = seats[body.count][0];
-    const created = {game:newMatch(body.count,body.long),players:{[team]:key},invite:crypto.randomUUID().replaceAll("-",""),version:1};
+    const created = {avatars:body.avatar ? {[team]:body.avatar} : {},game:newMatch(body.count,body.long),players:{[team]:key},invite:crypto.randomUUID().replaceAll("-",""),version:1};
     return await store.save(id,created,null) ? view(created,team) : fail("Try creating the room again.",409);
   }
   if (!room) return fail("Room not found.",404);
@@ -42,7 +46,7 @@ export async function roomApi(req:Request, store:Store):Promise<Response> {
     if (!valid(body.invite) || body.invite!==room.invite) return fail("This invitation is invalid.",403);
     const free = room.game.teams.find(t=>!room.players[t]);
     if (free===undefined) return fail("All seats are taken.",409);
-    const joined={...room,players:{...room.players,[free]:key},version:room.version+1};
+    const joined={...room,avatars:{...room.avatars,...(body.avatar ? {[free]:body.avatar} : {})},players:{...room.players,[free]:key},version:room.version+1};
     return await store.save(id,joined,room.version) ? view(joined,free) : fail("Another player just joined. Try again.",409);
   }
   if (!Number.isInteger(seat)) return fail("This seat is private.",403);
