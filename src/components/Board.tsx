@@ -10,7 +10,15 @@ const moods = [
 ];
 const tint = (camp: number) => ({"--tint": moods[camp]?.[2] ?? "#847697"} as CSSProperties);
 
-function MoodFace({symbol}:{symbol:string}) {
+function MoodFace({symbol,smiling=false}:{symbol:string;smiling?:boolean}) {
+  if (smiling && symbol==="😢") return <span className="sad-face sad-smiling" role="img" aria-label="Sadness smiling"><i/></span>;
+  if (smiling) {
+    const mood=moods.find(([,face])=>face===symbol);
+    const style=mood ? tint(moods.indexOf(mood)) : undefined;
+    const smile=<span className="smile-face" style={style} role="img" aria-label={mood ? mood[0]+" smiling" : "Smiling"}><i/></span>;
+    if (symbol==="😄") return <>{symbol}</>;
+    return mood ? smile : <span className="smiling-avatar">{symbol}{smile}</span>;
+  }
   if (symbol === "😢") return <span className="sad-face" role="img" aria-label="Sadness"><i /></span>;
   if (symbol === "😨" || symbol === "😌") return <span className={symbol === "😨" ? "fear-face" : "calm-face"}>{symbol}</span>;
   return <>{symbol}</>;
@@ -58,7 +66,7 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
   const [reactions, setReactions] = useState(true);
   const [hints, setHints] = useState(true);
   const [rotating, setRotating] = useState(false);
-  const [reaction, setReaction] = useState<{ id: string; face: string } | null>(null);
+  const [reaction, setReaction] = useState<string | null>(null);
   useEffect(() => {
     if (!reaction) return;
     const timer = window.setTimeout(() => setReaction(null), 950);
@@ -67,7 +75,7 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
   useEffect(() => {
     select("");
     if (game.last && faces && reactions) {
-      setReaction({id:game.last, face:Math.random()<0.5 ? "😉" : "😆"});
+      setReaction(game.last);
     }
     // React to a completed move once, including moves made by another player.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,11 +112,11 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
           return <button data-hole={c.id} key={c.id} style={tint(c.camp)} className={'hole' + (hints && legal.has(c.id) ? ' legal' : '') + (selected === c.id ? ' selected' : '')}
             disabled={!mine || busy || winner || rotating || (!own && !legal.has(c.id))} aria-label={label + ', row ' + (r+1) + ', hole ' + (i+1)}
             aria-pressed={piece === undefined ? undefined : selected === c.id} onClick={() => play(c.id)}>
-            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction?.id === c.id ? "face reacting" : "face"}><MoodFace symbol={reactions && reaction?.id === c.id && avatar(piece)!=="😢" ? reaction.face : avatar(piece)}/></span></span>}</span>}</button>;
+            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction === c.id ? "face reacting" : "face"}><MoodFace symbol={avatar(piece)} smiling={reactions && (winner ? piece===team : game.smile && reaction===c.id && game.last===c.id)}/></span></span>}</span>}</button>;
         })}</div>)}
       </BoardView>
       <aside><div className="turn" aria-live="polite"><p className="eyebrow">{winner ? "Winner" : "At the table"}</p>
-      <h2><MoodFace symbol={room?.departedWinner?.avatar || avatar(team)}/> {winner ? (!room?.departedWinner && (!online || room?.seat===team) ? "You won!" : winnerName+" wins!") : playerName(team)+"’s turn"}</h2>
+      <h2 style={tint(team)}><MoodFace symbol={room?.departedWinner?.avatar || avatar(team)} smiling={winner && faces && reactions}/> {winner ? (!room?.departedWinner && (!online || room?.seat===team) ? "You won!" : winnerName+" wins!") : playerName(team)+"’s turn"}</h2>
       {winner && <div className="confetti" aria-hidden="true">{Array.from({length:22},(_,i)=><i key={i} style={{left:(i*47%100)+"%",background:moods[i%6][2],animationDelay:(i%5)*0.09+"s"}}/>)}</div>}
       <p>{winner ? winnerName+" brought all ten marbles home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + playerName(team) + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
       <div className="turn-actions">

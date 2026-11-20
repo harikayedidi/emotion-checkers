@@ -57,3 +57,17 @@ test('a chain can change direction, stop early, and undo back to its origin', as
   assert.equal(applyMove({...game,long:false},first).turn,1);
   assert.equal(applyMove(game,{from:'0,8',to:'6,10'}),null);
 });
+
+test('special smiles track forward blocks and completed hop chains',async()=>{
+  const {blocksAdvance}=await import('../src/rules.ts');
+  const {newMatch,applyMove}=await import('../src/match.ts');
+  assert.equal(blocksAdvance({'0,8':0},3,'1,9'),true);
+  assert.equal(blocksAdvance({'0,8':0},3,'1,7'),false);
+  const game={...newMatch(2,true),board:{'0,8':0,'2,8':0,'5,9':0}};
+  const hop=applyMove(game,{from:'0,8',to:'4,8'});
+  assert.equal(hop.smile,false);
+  assert.equal(applyMove(hop,{end:true}).smile,false);
+  const chain=applyMove(hop,{from:'4,8',to:'6,10'});
+  assert.equal(chain.smile,true);
+  assert.equal(applyMove(chain,{undo:true}).smile,false);
+});

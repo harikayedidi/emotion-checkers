@@ -81,3 +81,10 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .fear-face,.calm-face {display:inline-block}
 .fear-face {filter:hue-rotate(220deg)}
 .calm-face {filter:hue-rotate(120deg)}
+
+.smile-face {display:inline-block;vertical-align:-.1em;position:relative;width:1em;height:1em;border-radius:50%;background:radial-gradient(ellipse 6% 9% at 32% 40%,#22283c 90%,transparent),radial-gradient(ellipse 6% 9% at 68% 40%,#22283c 90%,transparent),radial-gradient(circle at 32% 18%,white,var(--tint,#ffcc51) 52%,color-mix(in srgb,var(--tint,#ffcc51) 75%,#25283c))}
+.smile-face i {position:absolute;inset:52% 23% 17%;border-radius:10% 10% 50% 50% / 12% 12% 88% 88%;background:#24283b;border-top:.06em solid white}
+.smiling-avatar {position:relative;display:inline-block}
+.smiling-avatar .smile-face {position:absolute;bottom:-.1em;right:-.13em;font-size:.62em}
+
+.sad-smiling::after {top:54%;height:23%;border-top:0;border-bottom:.09em solid #172c55}

@@ -1,10 +1,10 @@
-import { initialPosition, moves, wins } from "./rules.ts";
+import { initialPosition, moves, wins, blocksAdvance } from "./rules.ts";
 
 export const seats: Record<number, number[]> = {2: [0, 3], 3: [0, 2, 4], 4: [1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5]};
 export type Move = { from: string; to: string } | { end: true } | { undo: true };
 export function newMatch(count: number, long: boolean) {
   const teams = seats[count];
-  return {undo: null as { from:string; to:string; turn:number } | null, teams, board: initialPosition(teams), turn: 0, chain: "", path: [] as string[], long, winner: false, last: ""};
+  return {undo: null as { from:string; to:string; turn:number } | null, teams, board: initialPosition(teams), turn: 0, chain: "", path: [] as string[], long, winner: false, smile:false, last: ""};
 }
 export type Match = ReturnType<typeof newMatch>;
 export function applyMove(game: Match, move: Move): Match | null {
@@ -14,7 +14,7 @@ export function applyMove(game: Match, move: Move): Match | null {
     if (!previous) return null;
     const board = {...game.board, [previous.from]:game.teams[previous.turn]};
     delete board[previous.to];
-    return {...game, board, turn:previous.turn, path:[], chain:"", last:"", undo:null};
+    return {...game, board, turn:previous.turn, path:[], chain:"", last:"", smile:false, undo:null};
   }
   const next = {...game, last: ""};
   if ("end" in move) {
@@ -29,6 +29,7 @@ export function applyMove(game: Match, move: Move): Match | null {
     next.undo = {from:game.path[0] ?? from,to,turn:game.turn};
     next.board = {...game.board, [to]:team};
     delete next.board[from];
+    next.smile = game.path.length > 0 || blocksAdvance(game.board,team,to);
     next.winner = wins(next.board, team);
     const visited = [...game.path, from];
     if (game.long && !next.winner && kind === 'hop' && [...moves(next.board,to,true).keys()].some(k => !visited.includes(k))) {
