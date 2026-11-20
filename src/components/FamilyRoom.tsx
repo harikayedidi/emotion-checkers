@@ -1,8 +1,8 @@
 import { solveChallenge } from "altcha-lib";
 import type { Challenge } from "altcha-lib/types";
-import { avatarSets } from "../avatars";
+import { avatarSets, avatarColors } from "../avatars";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Board from "./Board";
+import Board, { MoodFace } from "./Board";
 import type { Move, RoomView } from "../match";
 
 const roomApiBase=(import.meta.env.VITE_ROOM_API_ORIGIN || "")+"/api/rooms/";
@@ -161,7 +161,7 @@ export default function FamilyRoom() {
     {Object.entries(avatarSets).map(([group,choices])=><optgroup key={group} label={group}>
       {choices.filter(([symbol])=>!invite || !taken?.includes(symbol)).map(([symbol,name])=><option key={symbol} value={symbol}>{symbol} {name}</option>)}
     </optgroup>)}
-  </select></label></>;
+  </select>{avatar && <span aria-hidden="true" style={{backgroundColor:avatarColors[avatar],borderRadius:"50%",padding:"0.2em",lineHeight:1}}><MoodFace symbol={avatar}/></span>}</label></>;
   const link=room?.invite ? location.origin+location.pathname+"#room="+id+"&invite="+room.invite : "";
   const guestForm=<section className="family guest-entry"><h2>Join family game</h2>
     <form onSubmit={e=>{e.preventDefault();void send("join")}}>{picker}<button className="action" disabled={busy}>Join family game</button></form>

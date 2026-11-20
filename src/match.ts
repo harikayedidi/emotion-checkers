@@ -1,4 +1,4 @@
-import { initialPosition, moves, wins, blocksAdvance } from "./rules.ts";
+import { initialPosition, moves, wins } from "./rules.ts";
 
 export const seats: Record<number, number[]> = {2: [0, 3], 3: [0, 2, 4], 4: [1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5]};
 export type Move = { from: string; to: string } | { end: true } | { undo: true };
@@ -29,7 +29,7 @@ export function applyMove(game: Match, move: Move): Match | null {
     next.undo = {from:game.path[0] ?? from,to,turn:game.turn};
     next.board = {...game.board, [to]:team};
     delete next.board[from];
-    next.smile = game.path.length > 0 || blocksAdvance(game.board,team,to);
+    next.smile = kind === "hop" && game.path.length + 1 > 3;
     next.winner = wins(next.board, team);
     const visited = [...game.path, from];
     if (game.long && !next.winner && kind === 'hop' && [...moves(next.board,to,true).keys()].some(k => !visited.includes(k))) {

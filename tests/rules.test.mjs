@@ -58,16 +58,20 @@ test('a chain can change direction, stop early, and undo back to its origin', as
   assert.equal(applyMove(game,{from:'0,8',to:'6,10'}),null);
 });
 
-test('special smiles track forward blocks and completed hop chains',async()=>{
-  const {blocksAdvance}=await import('../src/rules.ts');
+test('only four or more consecutive hops earn a move smile',async()=>{
   const {newMatch,applyMove}=await import('../src/match.ts');
-  assert.equal(blocksAdvance({'0,8':0},3,'1,9'),true);
-  assert.equal(blocksAdvance({'0,8':0},3,'1,7'),false);
-  const game={...newMatch(2,true),board:{'0,8':0,'2,8':0,'5,9':0}};
-  const hop=applyMove(game,{from:'0,8',to:'4,8'});
-  assert.equal(hop.smile,false);
-  assert.equal(applyMove(hop,{end:true}).smile,false);
-  const chain=applyMove(hop,{from:'4,8',to:'6,10'});
-  assert.equal(chain.smile,true);
-  assert.equal(applyMove(chain,{undo:true}).smile,false);
+  let game={...newMatch(2,true),board:{'-8,8':0,'-6,8':3,'-2,8':3,'2,8':3,'6,8':3,'7,9':3}};
+  for (let n=1;n<=4;n++){
+    game=applyMove(game,{from:(4*n-12)+',8',to:(4*n-8)+',8'});
+    assert.equal(game.smile,n>3);
+    assert.equal(applyMove(game,{end:true}).smile,n>3);
+  }
+  assert.equal(applyMove(game,{undo:true}).smile,false);
+});
+test('all twelve multiplayer choices have fixed distinct backplates',async()=>{
+  const {avatarSets,avatarColors,validAvatar}=await import('../src/avatars.ts');
+  const choices=Object.values(avatarSets).flat().map(([s])=>s);
+  assert.equal(choices.length,12);
+  assert.ok(choices.every(s=>validAvatar(s) && /^#[0-9a-f]{6}$/.test(avatarColors[s])));
+  assert.equal(new Set(choices.map(s=>avatarColors[s])).size,12);
 });

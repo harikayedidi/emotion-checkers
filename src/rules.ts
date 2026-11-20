@@ -37,19 +37,3 @@ export function moves(board: Position, from: string, hopsOnly = false) {
   }
   return result;
 }
-
-// Distance to the nearest hole in each team's destination camp, on the hex lattice.
-const goalDistances = Array.from({length:6}, (_,team) => {
-  const goals=rows.flat().filter(c=>c.camp===(team+3)%6);
-  return new Map(rows.flat().map(cell=>[cell.id,Math.min(...goals.map(goal=>{
-    const dx=Math.abs(cell.x-goal.x), dy=Math.abs(cell.y-goal.y);
-    return Math.max(dy,(dx+dy)/2);
-  }))]));
-});
-export function blocksAdvance(board:Position, team:number, landing:string) {
-  return Object.entries(board).some(([from,other])=>{
-    if(other===undefined || other===team) return false;
-    const distances=goalDistances[other];
-    return distances.get(landing)! < distances.get(from)! && moves(board,from).has(landing);
-  });
-}

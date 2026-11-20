@@ -88,3 +88,7 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
 .smiling-avatar .smile-face {position:absolute;bottom:-.1em;right:-.13em;font-size:.62em}
 
 .sad-smiling::after {top:54%;height:23%;border-top:0;border-bottom:.09em solid #172c55}
+
+.multiplayer-marble {background:radial-gradient(circle at 28% 18%,color-mix(in srgb,var(--tint),white 24%),var(--tint) 42%,color-mix(in srgb,var(--tint),black 24%));outline:1px solid #ffffff80}
+
+.smiling-avatar .smile-face {--tint:#ffdc77}
