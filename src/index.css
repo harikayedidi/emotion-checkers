@@ -72,3 +72,12 @@ form {justify-content:space-between;margin-top:15px}.setting input {accent-color
   .mobile-turn-actions button:disabled {opacity:.55}
   .turn-actions .move-control {display:none}
 }
+
+/* Keep Sadness blue across platforms, including those with only yellow face emoji. */
+.sad-face {position:relative;display:inline-block;width:1em;height:1em;vertical-align:-.1em;border-radius:50%;background:radial-gradient(circle at 32% 18%,#b7e5ff,#57a9f6 58%,#3973c1)}
+.sad-face::before {content:"";position:absolute;inset:0;background:radial-gradient(ellipse 6% 9% at 32% 44%,#172c55 90%,transparent),radial-gradient(ellipse 6% 9% at 67% 44%,#172c55 90%,transparent)}
+.sad-face::after {content:"";position:absolute;left:31%;top:65%;width:36%;height:24%;border-top:.08em solid #172c55;border-radius:50%}
+.sad-face i {position:absolute;left:70%;top:52%;width:14%;height:18%;border-radius:60% 15% 65% 65%;transform:rotate(-25deg);background:#d9f9ff;box-shadow:0 .03em .04em #4173ab}
+.fear-face,.calm-face {display:inline-block}
+.fear-face {filter:hue-rotate(220deg)}
+.calm-face {filter:hue-rotate(120deg)}

@@ -10,6 +10,12 @@ const moods = [
 ];
 const tint = (camp: number) => ({"--tint": moods[camp]?.[2] ?? "#847697"} as CSSProperties);
 
+function MoodFace({symbol}:{symbol:string}) {
+  if (symbol === "😢") return <span className="sad-face" role="img" aria-label="Sadness"><i /></span>;
+  if (symbol === "😨" || symbol === "😌") return <span className={symbol === "😨" ? "fear-face" : "calm-face"}>{symbol}</span>;
+  return <>{symbol}</>;
+}
+
 type Props = {onQuit?:()=>void;onRematch?:()=>void; panel?: ReactNode; room?: RoomView | null; online?: boolean; busy?: boolean; onMove?: (move: Move) => void};
 export default function Board({panel, room, online, busy, onMove, onRematch, onQuit}: Props) {
   const [local, setLocal] = useState(() => newMatch(6, true));
@@ -98,11 +104,11 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
           return <button data-hole={c.id} key={c.id} style={tint(c.camp)} className={'hole' + (hints && legal.has(c.id) ? ' legal' : '') + (selected === c.id ? ' selected' : '')}
             disabled={!mine || busy || winner || rotating || (!own && !legal.has(c.id))} aria-label={label + ', row ' + (r+1) + ', hole ' + (i+1)}
             aria-pressed={piece === undefined ? undefined : selected === c.id} onClick={() => play(c.id)}>
-            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction?.id === c.id ? "face reacting" : "face"}>{reactions && reaction?.id === c.id ? reaction.face : avatar(piece)}</span></span>}</span>}</button>;
+            {piece !== undefined && <span className="marble" style={tint(piece)}>{faces && <span className="upright"><span className={reactions && reaction?.id === c.id ? "face reacting" : "face"}><MoodFace symbol={reactions && reaction?.id === c.id && avatar(piece)!=="😢" ? reaction.face : avatar(piece)}/></span></span>}</span>}</button>;
         })}</div>)}
       </BoardView>
       <aside><div className="turn" aria-live="polite"><p className="eyebrow">{winner ? "Winner" : "At the table"}</p>
-      <h2>{room?.departedWinner?.avatar || avatar(team)} {winner ? (!room?.departedWinner && (!online || room?.seat===team) ? "You won!" : winnerName+" wins!") : playerName(team)+"’s turn"}</h2>
+      <h2><MoodFace symbol={room?.departedWinner?.avatar || avatar(team)}/> {winner ? (!room?.departedWinner && (!online || room?.seat===team) ? "You won!" : winnerName+" wins!") : playerName(team)+"’s turn"}</h2>
       {winner && <div className="confetti" aria-hidden="true">{Array.from({length:22},(_,i)=><i key={i} style={{left:(i*47%100)+"%",background:moods[i%6][2],animationDelay:(i%5)*0.09+"s"}}/>)}</div>}
       <p>{winner ? winnerName+" brought all ten marbles home." : waiting ? "Share the invitation. Play starts when everyone is seated." : !mine ? "Waiting for " + playerName(team) + " to move." : rotating ? "Drag around the board’s center. Switch off drag and turn to play." : path.length ? "Hop again with this marble, or end your turn." : selected ? legal.size ? (hints ? "Choose a glowing spot to land." : "Choose your landing spot.") : "This marble is blocked. Pick another." : (hints ? "Pick a marble to see where it can go." : "Pick a marble, then choose your move.")}</p></div>
       <div className="turn-actions">
@@ -112,8 +118,8 @@ export default function Board({panel, room, online, busy, onMove, onRematch, onQ
       </div>
       {winner && online && !!room?.ready?.length && <p role="status">{room.ready.length}/{teams.length} ready to play again</p>}
       {online && !winner && game.undo && !mine && room?.seat===teams[game.undo.turn] && <small>You can undo until the next player moves.</small>}
-      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && avatar(t)} {playerName(t)}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
-      {room?.leaderboard && <section className="leaderboard"><h3>Room leaderboard</h3><table><thead><tr><th>Player</th><th>Wins</th></tr></thead><tbody>{room.leaderboard.map((row,i)=><tr key={i}><td>{row.avatar} {row.name}</td><td>{row.wins}</td></tr>)}</tbody></table></section>}
+      <div className="teams">{teams.map(t => <div key={t}><i style={tint(t)} />{online && <MoodFace symbol={avatar(t)}/>} {playerName(t)}<small>{rows.flat().filter(c => c.camp === (t+3)%6 && board[c.id] === t).length}/10</small></div>)}</div>
+      {room?.leaderboard && <section className="leaderboard"><h3>Room leaderboard</h3><table><thead><tr><th>Player</th><th>Wins</th></tr></thead><tbody>{room.leaderboard.map((row,i)=><tr key={i}><td><MoodFace symbol={row.avatar}/> {row.name}</td><td>{row.wins}</td></tr>)}</tbody></table></section>}
       <label className="setting"><input type="checkbox" checked={long} disabled={online || !!path.length} onChange={e => setLocal({...local,long:e.target.checked,last:""})}/> Allow chain jumps</label>
       <label className="setting"><input type="checkbox" checked={sounds} onChange={e=>toggleSounds(e.target.checked)}/> Jump sounds</label>
       <label className="setting"><input type="checkbox" checked={faces} onChange={e => {setFaces(e.target.checked); setReaction(null);}}/> Emoji marbles</label>
