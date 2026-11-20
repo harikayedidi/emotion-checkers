@@ -34,7 +34,7 @@
 
 ### Family rooms
 
-Open **Play online with family**, choose 2, 3, 4, or 6 players and create a room. Share the family invite privately. Each browser that joins claims a seat. The game starts once all seats are filled. Keep the room URL to reconnect from the same browser profile. Board rotation, hints and emoji settings are personal to each screen.
+Configure the server secret `FAMILY_ACCESS_CODE` to enable private rooms. Missing or incorrect codes block all room requests. Share the code privately and rotate it on the server to revoke access. On the game page, unlock **Private multiplayer** with the code, then open **Play online with family**, choose 2, 3, 4, or 6 players and create a room. Share the family invite privately. Each browser that joins claims a seat. The game starts once all seats are filled. Keep the room URL to reconnect from the same browser profile. Board rotation, hints and emoji settings are personal to each screen.
 
 The Node server serves both the built React app and the room API. With Node 22.13 or newer, run `npm ci`, `npm run build`, then `npm start`. Open port 3000, or set `PORT`. Run the room test after building with `node --test tests/family-room.test.mjs`.
 

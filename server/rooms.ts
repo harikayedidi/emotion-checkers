@@ -28,8 +28,11 @@ function view(room:Room, seat:number) {
   return json({leaderboard,departedWinner:room.departedWinner,round:room.round ?? 1,ready:room.ready ?? [],names:room.names ?? {},avatars:room.avatars ?? {}, game:room.game, joined:Object.keys(room.players).map(Number), seat, version:room.version,
     ...(seat === (room.host ?? room.game.teams[0]) ? {invite:room.invite} : {})});
 }
-export async function roomApi(req:Request, store:Store):Promise<Response> {
+export async function roomApi(req:Request, store:Store, accessCode?:string):Promise<Response> {
+  if (!accessCode || req.headers.get("X-Family-Code") !== accessCode)
+    return fail("Enter a valid multiplayer access code.",401);
   const id = new URL(req.url).pathname.split("/").pop();
+  if (id==="unlock" && req.method==="POST") return json({unlocked:true});
   if (!valid(id)) return fail("Room not found.",404);
   const token = req.headers.get("Authorization")?.replace(/^Bearer /,"");
   if (!valid(token)) return fail("Open your family invitation to join.",403);

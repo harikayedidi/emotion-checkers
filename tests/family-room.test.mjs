@@ -20,10 +20,10 @@ test('two independent seats share authoritative turns and reconnect safely', asy
   const [id,host,guest,outsider]=Array.from({length:4},()=>crypto.randomUUID().replaceAll('-',''));
   async function call(token,body) {
     const req=new Request('https://game.test/api/rooms/'+id,{
-      method:body?'POST':'GET',headers:{Authorization:'Bearer '+token},
+      method:body?'POST':'GET',headers:{'X-Family-Code':'test-only',Authorization:'Bearer '+token},
       body:body?JSON.stringify(body):undefined
     });
-    const res=await roomApi(req,store);return {status:res.status,...await res.json()};
+    const res=await roomApi(req,store,"test-only");return {status:res.status,...await res.json()};
   }
   async function proof(token,action){
     const check=await call(token,{action:'challenge',for:action});
@@ -112,4 +112,18 @@ test('two independent seats share authoritative turns and reconnect safely', asy
   await call(outsider,{action:'quit'});
   assert.equal((await call(host,{action:'availability',invite:first.invite})).status,403);
   db.close();
+});
+
+test('room access requires the shared code before storage or challenges', async () => {
+  const endpoints = ['unlock', '0'.repeat(32)];
+  for (const endpoint of endpoints) {
+    for (const method of ['GET','POST']) {
+      for (const [secret,provided] of [[undefined,'test-only'],['test-only',''],['test-only','wrong']]) {
+        const request=new Request('https://game.test/api/rooms/'+endpoint,{method,headers:{'X-Family-Code':provided}});
+        assert.equal((await roomApi(request,{},secret)).status,401);
+      }
+    }
+  }
+  const unlock=new Request('https://game.test/api/rooms/unlock',{method:'POST',headers:{'X-Family-Code':'test-only'}});
+  assert.equal((await roomApi(unlock,{},'test-only')).status,200);
 });

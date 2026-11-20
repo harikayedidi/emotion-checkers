@@ -28,7 +28,7 @@ createServer(async(req,res)=>{
       let body='';
       for await(const chunk of req){body+=chunk;if(body.length>8192){res.writeHead(413).end();return}}
       const request=new Request(url,{method:req.method,headers:req.headers,...(req.method==='POST'?{body}:{})});
-      const reply=await roomApi(request,store);
+      const reply=await roomApi(request,store,process.env.FAMILY_ACCESS_CODE);
       res.writeHead(reply.status,Object.fromEntries(reply.headers)).end(await reply.text());
       return;
     }

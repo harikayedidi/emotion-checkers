@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import type { Move, RoomView } from "../match";
 
+const roomApiBase=(import.meta.env.VITE_ROOM_API_ORIGIN || "")+"/api/rooms/";
+const codeKey="emotion-checkers-family-access";
 const fresh = () => crypto.randomUUID().replace(/-/g,"");
 const names = ["Joy","Fear","Anger","Sadness","Disgust","Calm"];
 class RoomError extends Error {
@@ -17,6 +19,8 @@ function locationRoom() {
 export default function FamilyRoom() {
   const [{id,invite},setLocation] = useState(locationRoom);
   const [room,setRoom] = useState<RoomView | null>(null);
+  const [code,setCode]=useState(()=>sessionStorage.getItem(codeKey) || "");
+  const [enteredCode,setEnteredCode]=useState("");
   const [name,setName] = useState("");
   const [avatar,setAvatar] = useState("");
   const [taken,setTaken]=useState<string[] | null>(null);
@@ -46,14 +50,15 @@ export default function FamilyRoom() {
       if(!pending) localStorage.setItem(storageKey,token);
     }
     if (!token) throw Error("Use the invitation link to take your seat.");
-    const response=await fetch((import.meta.env.VITE_ROOM_API_ORIGIN || "")+"/api/rooms/"+target,{method:body?"POST":"GET",cache:"no-store",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+    const response=await fetch(roomApiBase+target,{method:body?"POST":"GET",cache:"no-store",headers:{"X-Family-Code":code,Authorization:"Bearer "+token,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
     const value=await response.json().catch(()=>{throw Error("The room server is unavailable.")});
+    if (response.status===401){sessionStorage.removeItem(codeKey);setCode("");setRoom(null);setError(value.error);}
     if (!response.ok) throw new RoomError(value.error || "Could not reach the room.",response.status,!!value.monthly,Number(response.headers.get("Retry-After"))*1000);
     return value as T;
-  },[id,invite]);
+  },[id,invite,code]);
   function update(next:RoomView) {setRoom(old=>!old || next.version>old.version ? next : old)}
   useEffect(()=>{
-    if(!id || !invite) return;
+    if(!code || !id || !invite) return;
     let cancelled=false;
     let timer:ReturnType<typeof setTimeout>;
     async function refreshChoices(){
@@ -73,10 +78,10 @@ export default function FamilyRoom() {
     }
     void refreshChoices();
     return ()=>{cancelled=true;clearTimeout(timer)};
-  },[id,invite,refresh,request]);
+  },[id,invite,code,refresh,request]);
   const readyForRematch=!!room?.ready?.includes(room.seat);
   useEffect(()=>{
-    if (!id || invite || !(sessionStorage.getItem("emotion-seat-"+id) || localStorage.getItem("emotion-seat-"+id))) return;
+    if (!code || !id || invite || !(sessionStorage.getItem("emotion-seat-"+id) || localStorage.getItem("emotion-seat-"+id))) return;
     let cancelled=false;
     let running=false;
     let stopped=false;
@@ -102,7 +107,7 @@ export default function FamilyRoom() {
     void poll();
     document.addEventListener("visibilitychange",poll);
     return ()=>{cancelled=true;clearTimeout(timer);document.removeEventListener("visibilitychange",poll)};
-  },[id,invite,readyForRematch,request]);
+  },[id,invite,code,readyForRematch,request]);
   async function send(action:"create"|"join"|"move"|"rematch"|"rename"|"quit",move?:Move) {
     if(lock.current) return;
     if((action==="create" || action==="join" || action==="rename") && !name.trim()){
@@ -162,7 +167,25 @@ export default function FamilyRoom() {
     <form onSubmit={e=>{e.preventDefault();void send("join")}}>{picker}<button className="action" disabled={busy}>Join family game</button></form>
     {busy && <p role="status">Checking your browser…</p>}{error && <p role="alert">{error}</p>}
   </section>;
-  const panel=id && invite && !room ? guestForm : <details className="family" open={id ? true : undefined}><summary>{id?"Family room":"Play online with family"}</summary>
+  async function unlock(event:React.FormEvent){
+    event.preventDefault();
+    if(lock.current) return;
+    lock.current=true;setBusy(true);setError("");
+    const candidate=enteredCode.trim();
+    try {
+      const response=await fetch(roomApiBase+"unlock",{method:"POST",headers:{"X-Family-Code":candidate},cache:"no-store"});
+      if(!response.ok) throw Error(response.status===401 ? "That access code didn’t match. Try again." : "Could not unlock multiplayer. Try again.");
+      const result=await response.json();
+      if(result.unlocked!==true) throw Error("The room server is unavailable.");
+      sessionStorage.setItem(codeKey,candidate);setCode(candidate);setEnteredCode("");
+    }catch(e){setError((e as Error).message)}
+    finally{lock.current=false;setBusy(false)}
+  }
+  const panel=!code ? <details className="family" open={id ? true : undefined}>
+    <summary>Private multiplayer</summary>
+    <form className="room-controls" onSubmit={unlock}><label>Multiplayer access code <input type="password" required autoComplete="off" value={enteredCode} onChange={e=>setEnteredCode(e.target.value)}/></label>
+    <button className="action" disabled={busy}>Unlock multiplayer</button></form>
+    {error && <p role="alert">{error}</p>}</details> : id && invite && !room ? guestForm : <details className="family" open={id ? true : undefined}><summary>{id?"Family room":"Play online with family"}</summary>
     {!id ? <div className="room-controls">{picker}<label>Family players <select value={count} onChange={e=>setCount(Number(e.target.value))}>{[2,3,4,6].map(n=><option key={n}>{n}</option>)}</select></label>
     <label><input type="checkbox" checked={long} onChange={e=>setLong(e.target.checked)}/> Allow chain jumps</label><button className="action" disabled={busy} onClick={()=>void send("create")}>Create private room</button></div> :
     <div className="room-controls">{room ? <><span>You play {room.names?.[room.seat] || names[room.seat]} · {room.joined.length}/{room.game.teams.length} seated</span>
